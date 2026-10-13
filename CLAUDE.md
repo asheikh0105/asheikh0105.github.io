@@ -30,14 +30,37 @@ Two entry points are served by the same dev server:
 ## v2 architecture
 
 ```
-src/App.v2.jsx            copy of App.jsx; Spline replaced by <Arm paused={!onHome} />;
-                          white page; zoom lock (see below)
+src/App.v2.jsx            bubble navigation state machine + zoom lock; renders <Arm /> (see Page UI)
+src/ui/*.v2.*             bubble layout, bubbles, flank panels, content adapter, image preloader
 src/arm/Arm.v2.jsx        scene, materials, link/joint/base geometry, per-frame control loop
 src/arm/kinematics.v2.js  constants, transform matrices, IK, collision model, solveSafe
 src/arm/link2.v2.js       buildForkedLink(): link 2 as one solid (loft minus slot, via CSG)
 ```
 
-Page UI (App.v2.jsx): dark text on white for the header and home cards; project/about panels keep their dark glass look. Browser zoom is locked (Ctrl/Cmd `+ - 0`, Ctrl+wheel, Safari gesturestart, viewport `user-scalable=no` in `index.v2.html`); menu zoom cannot be blocked.
+### Page UI: bubble navigation (route 1)
+
+The arm is always mounted and always live (never paused, never hidden). Only the bubbles and the flanking panels change.
+
+```
+src/ui/content.v2.js   normalises content.json into terminal items {slug,title,subtitle,date,paragraphs,images,note}; homeBubbles
+src/ui/layout.v2.js    slot maths: ellipse around the arm (centre 50%/50%, radii 40% w / 36% h); ringSlot, homeSlot, BACK_SLOT, MORE_SLOT
+src/ui/Bubbles.v2.jsx  Bubble (thumbnail circle, label OUTSIDE below), TextPanel, ImagePanel
+src/ui/bubbles.v2.css  pop-in / slide-in keyframes
+src/ui/preload.v2.js   startPreload(): staged image loading + decoding (see below)
+```
+
+**State machine** in `App.v2.jsx`: `home` -> `ring` -> `detail`.
+
+- **home:** 4 large bubbles in two mirrored columns. Slots (% of viewport, bubble centres): Projects (23, 28), Designs (12.4, 68), About (77, 28), Contact (87.6, 68). Designs/Contact keep the far-out horizontal offset; Projects/About sit above and nearer the centre.
+- **ring** (Projects or Designs): 8 slots on the ellipse from bottom-left over the top to bottom-right (225 deg -> -45 deg). Slot 0 = Back (to home), slot 7 = More, slots 1-6 = items (6 per page). More cycles pages and only shows when there is more than one page (Projects: 14 items = 3 pages; Designs: 6 items = 1 page, so no More).
+- **detail** (a project, a design, About or Contact): text goes on the side of the screen the clicked bubble is on, images on the opposite side, flanking the arm. The ring is hidden; one Back bubble (bottom-left) returns to where you came from. Escape also goes back. The arm stays live throughout (no pause, no dimming overlay).
+- About and Contact reuse the detail layout as **placeholders** until their format is specified; Contact has placeholder text and no images.
+
+**Bubble sizes:** base `clamp(84px, 12vmin, 128px)`. Home bubbles use `HOME_SCALE = 2`; ring (project/design menu) bubbles grow by half that increase (`RING_SCALE = 1 + (HOME_SCALE-1)/2 = 1.5`). Change `HOME_SCALE` and the ring follows. Labels sit outside, below the circle. Captions use `leading-snug pb-1` because `line-clamp-2` + tight leading clipped descenders (j, g, y) in the first version.
+
+**Image preloading** (`preload.v2.js`): after the window `load` event plus two animation frames it loads AND decodes images in tiers, each tier finishing before the next, 3 at a time: (1) home-bubble thumbnails, (2) project thumbnails in menu order, (3) design thumbnails, (4) all remaining project/design photos and the About photos. Image objects are kept in a module array so the cache is held. Reason: the first version fetched menu images only when a menu opened (only Claw'd's photo, already on the home page, appeared instantly).
+
+The page is white; header and bubble labels are dark. Browser zoom is locked (Ctrl/Cmd `+ - 0`, Ctrl+wheel, Safari gesturestart, viewport `user-scalable=no` in `index.v2.html`); menu zoom cannot be blocked.
 
 ## Rebuilding the v2 robot arm exactly
 
@@ -104,11 +127,39 @@ Shared outline: half-height `h(t) = r0 + (r1-r0)·smoothstep(t) + bulge·sin²(�
 - Collision model (2D, arm plane; base is axisymmetric so yaw doesn't matter): capsules link1 r0.45, link2 r0.36, link3 (W->0.77) r0.3, sleeve (0.7->L3) r0.26, rod (L3->tip+0.25) r0.2; base rectangles `[-1.7,1.7,0.3]`, `[-1.2,1.2,0.5]`, `[-1.03,1.03,0.65]`, `[-0.9,0.9,0.86]`; floor; links 2-3 vs the shoulder pin (radius 0.4); link1 vs link3/sleeve/rod; link2 vs rod. Margin 0.03. Joint limits: `q2 in [-2.5, 0]`, `q3 in [-1.6, 1.6]` (beyond ~90 deg link 3's wide end would swing into link 2's prongs). Keep the base boxes in sync if base geometry changes.
 - Verified in Node: ~1,200 simulated cursor moves gave 0 failed solves, 0 collisions, worst solve ~4 ms.
 
-## Known notes / possible follow-ups
+## Status and handoff
+
+**Done and approved by the user:** the arm (kinematics, collisions, looks), the bubble navigation (home/ring/detail), larger bubbles with outside captions, and image preloading. Commits (newest first): the bubble-UI save point (tag `ui-bubbles-baseline`, `git log -1 ui-bubbles-baseline`), `65f3808` (v2 arm + CLAUDE.md, tag `arm-v2-baseline`), `2d5c4c6` (v1 scaffold). Everything described in this file is committed. Nothing has been pushed to GitHub (`origin` is `asheikh0105/asheikh0105.github.io`), and the site is local-only.
+
+**Next session (planned by the user):** fill in the real content, and "de-AI" the UI (make it feel less generic / auto-generated: copy, type, spacing, bubble styling, the placeholder-ish panels).
+
+### Content still to do
+
+- **About and Contact** have no final format. Contact is placeholder text. The old contact email in `content.json` (`aasheikh@bu.edu`) may be outdated; get the current one.
+- 7 of 14 projects have **no photos** (they show initials in their bubble, and "No photos for this one yet." in the image panel). Several were video-only on the old site (e.g. the LQR pendulum's `ec402projectVideo.mp4`), so videos were never harvested. Decide how to show video.
+- Some projects have no description text; designs only have one-line descriptions. The old designs intro said "Click on each to view details and download STL files!", but there are **no STL files or download links** in `content.json`.
+- Project/design **order** in the menu is just `content.json` order; Projects spans 3 pages. Pick which projects deserve page 1.
+- Image sizes: the bubbles show small circles but load full-size originals (largest is a 3 MB PNG; 48 images, ~17 MB). Generate small thumbnails if loading is still slow, especially in a production build.
+
+### Struggles and gotchas (so they are not rediscovered)
+
+- **Never visually verified by Claude.** The agent could not open a browser during this work; the user judged the look and fed back. The kinematics/collision/geometry builders were checked numerically in Node. Not yet checked at all: preloader timing, and whether the large Projects/About bubbles collide with the header at narrow window widths.
+- **IK search bug (fixed):** a linear scan with a floating-point step skipped `s = 0`, returned `null`, and froze the arm; the first idle animation also snapped the arm to the corner. Idle animation was removed. Keep `solveSafe` as bisection and keep the IK grids fixed.
+- **Branch flips in IK** caused joint snapping until candidates were ordered by continuity with the previous pose (`hint`).
+- **Link 2 seams:** stacking separate extrusions left visible internal lines; the fix was one lofted solid minus a slot box via CSG. A first `npm install three-bvh-csg` failed on a peer conflict: install `three-bvh-csg@0.0.17` with `three-mesh-bvh@0.8.3` (what drei expects), and keep `resolve.dedupe: ['three']` in `vite.config.js` to avoid "Multiple instances of Three.js".
+- **Bevel arithmetic:** an extrusion with bevels is `depth + 2*bevelThickness` thick and its outline grows by `bevelSize`. Collision radii and clearances (turret top, ears at +-0.39) were tuned against this.
+- **Lightformer needs `target`**, otherwise the panels all face +Z and the arm lights wrong. `metalness: 1` made the arm black or mirror-bright depending on angle; satin 0.75 fixed it.
+- **Zoom lock caveat:** Ctrl/Cmd +/-/0, Ctrl+wheel and Safari pinch are blocked, but zoom from the browser menu cannot be.
+- **Windows tooling:** Python defaults to cp1252 when reading files here, so pass `encoding='utf-8'` to `open()`. Git warns about LF -> CRLF on every file (harmless; `.gitattributes` controls it). The edit tool refuses to write a file it has not freshly read.
+- **Process:** v1 files are kept as the fallback by convention; v2 files carry the changes.
+
+### Known design notes / possible follow-ups
 
 - Link 1 is still slab + prongs from separate extrusions and may show a faint seam; it can be rebuilt with the `link2.v2.js` approach.
 - Overhead cursor crossing over the base makes the turret spin ~180 degrees (correct but abrupt).
-- The tab/body/prong thickness steps on link 3 and the flat slot walls on link 2 are sharp-edged.
+- The thickness steps on link 3 and the flat slot walls on link 2 are sharp-edged.
 - The ring-gear teeth are decorative (no motor or pinion).
 - The cursor can't aim below the arm's floor; the arm then points at floor level.
-- To go public: add v2 as a second build input (or promote it to `index.html`), then deploy.
+- The bubble ring slots are fixed (empty slots stay empty on a short last page; items fill from the left).
+- Side panels are about 28vw wide and 55vh tall and can overlap the arm when it reaches sideways (they are translucent).
+- To go public: add v2 as a second build input (or promote it to `index.html`), then deploy. `npm run build` currently builds only `index.html`.
