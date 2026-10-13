@@ -1,0 +1,228 @@
+{
+  "source": "https://sites.google.com/view/aamirsheikh-eng",
+  "note": "Harvested content only — not the old site's layout/format. Image files live in old_site_data/images/<slug>/. Old contact email on the source site was aasheikh@bu.edu (may be outdated).",
+
+  "about": {
+    "headline": "Engineering Portfolio - Aamir Sheikh",
+    "certifications": "Certified SOLIDWORKS Design Professional and Associate",
+    "bio": [
+      "I'm an undergraduate student at Boston University studying Mechanical Engineering with a concentration in Robotics. I am passionate about electromechanical design and the medical applications of robotics. I am also interested in designing for taking engineered products to market, which I will explore through a minor in Innovation and Entrepreneurship.",
+      "At BU, I currently serve as the President of our chapter of the American Society of Mechanical Engineers. I also support fellow engineering students as a Teaching Assistant for ENG EK307: Electric Circuits. Additionally, I have conducted academic research in soft robotics with the Morphable Biorobotics Lab.",
+      "Outside of my studies, I enjoy bike rides, going to the gym, playing video games, and cooking. I also work as a Resident Assistant on my college campus! Please reach out if you would like to know more about me!"
+    ],
+    "old_contact_email": "aasheikh@bu.edu",
+    "images": {
+      "profile_photo": "images/about/1.jpg",
+      "certificate_cswp_design_professional": "images/about/2.png",
+      "certificate_cad_design_associate": "images/about/3.png"
+    }
+  },
+
+  "projects": [
+    {
+      "slug": "lqr-inverted-pendulum-balancer",
+      "title": "LQR Inverted Pendulum Balancer",
+      "summary": "4-state machine that drives pendulum position from the downwards stable equilibrium to the upright unstable equilibrium.",
+      "description": null,
+      "media_note": "Page only contained an embedded video (ec402projectVideo.mp4); no static photos were retrievable from the source site.",
+      "images": []
+    },
+    {
+      "slug": "clawd-wirelessly-controlled-3-5-dof-mechanism",
+      "title": "Claw'd - a wirelessly controlled 3.5 DOF mechanism",
+      "summary": "Originally-designed claw machine game featuring a Bluetooth controller and product design focus on user enjoyment.",
+      "description": "For this project, I worked with my team to design and build Claw'd, a from-scratch claw machine that functions as a 3.5 DOF Cartesian gantry with full wireless gameplay. The player connects a PS5 DualSense controller via Bluetooth, navigates a two-finger claw across a prize bed using the left stick, and pulls the right trigger to launch an automated grab cycle. The claw drops down, grips, retracts, and either returns for another attempt or delivers the prize to a drop chute. An ESP32 orchestrates everything through a finite state machine.\n\nWe deliberately exceeded the course requirement of 2.5 DOF and a 2.5 in by 2.5 in end effector workspace. Our final system achieved 3.5 DOF with a 250 mm by 200 mm work area, and we were the only group in our section to build bearing-based carriages. We also designed a fully original gear-driven claw that qualified for extra credit. The claw machine concept appealed to us because it demanded a genuinely difficult end effector. Unlike a magnet or pen mount, a mechanical gripper forced us to solve linkage geometry, actuator selection, and grip reliability from the ground up. On top of that, the format made for a compelling live demo since anyone could walk up, grab the controller, and play without instructions.\n\n**Gripper design**\nThe claw is a two-finger gripper fabricated entirely from laser-cut acrylic, designed from scratch without reference to any existing claw mechanism. It earned extra-credit status as an original end effector.\n\nActuation comes from a single SG90 micro servo. The servo horn is embedded directly into one finger's gear, and that gear meshes with a matching gear on the second finger. So one finger drives actively while the other follows passively through the gear interface. Sweeping the servo between 90 and 140 degrees toggles the fingers open and closed.\n\nOne problem we anticipated early was that a single thin layer of acrylic would make the grip surfaces nearly planar, letting the fingers shear past each other and fail to hold prizes reliably. To address this, we laminated several layers of laser-cut acrylic finger profiles on top of one another, building up real thickness at the grip contact area.\n\nThe claw hangs from the Z-axis by a length of fishing line knotted to the frame and wound around a 3D-printed spool on the Z motor shaft. Because the claw dangles freely and can spin around the vertical axis of the line, we could not rely on a traditional contact-based limit switch for Z homing — a rotating payload would not trigger it consistently.\n\n**How the axes work**\nThe gantry provides three full degrees of freedom plus a binary half-degree at the gripper.\n\n- X-axis translation: two synchronized NEMA 17 steppers, one at each end of the X-axis rails, drive this axis as a paired unit through Marlin's dual-stepper driver feature, with the second motor assigned to the E1 driver slot. Total X travel is 250 mm.\n- Y-axis translation, perpendicular to X: a single NEMA 17 stepper handles this axis. Its motor sits on a carriage that rides along the right X-rail, so it translates whenever the X-axis moves. Y travel is 200 mm.\n- Z-axis vertical motion: rather than a belt-driven linear stage, the Z-axis uses a spool-and-line mechanism. A NEMA 17 on the Y-axis carriage winds and unwinds fishing line to raise and lower the claw. Travel is 250 mm. There is no limit switch for Z — starting height is set manually before power-on, and the motor's holding torque maintains position. During a grab cycle, the firmware commands a fixed 100 mm descent followed by a 100 mm retraction.\n- The half DOF is the claw itself, toggling between open at 155 degrees and closed at 90 degrees on the servo. Because it occupies only two discrete states rather than continuous positioning, it counts as half a degree of freedom.\n\n**Control system and firmware**\nTwo boards divide the electronic workload. The MKS Base v1.6 runs a customized Marlin build and drives all four NEMA 17 steppers plus the SG90 servo. The ESP32 handles wireless communication and gameplay logic, pairing with the PS5 controller over Bluetooth through the Bluepad32 library and issuing G-code to the MKS over a UART link running at 250,000 baud.\n\nPower enters through a barrel jack on the housing. The 12 V supply feeds the MKS directly, and a buck converter steps it down to 5 V for the ESP32. Both boards sit on standoffs inside a 3D-printed enclosure mounted to the rear acrylic panel.\n\nA significant firmware challenge was that the MKS Base does not natively support multiple serial inputs or wireless connectivity. We had to alter the Marlin source to disable the default USB serial interface and redirect serial communication so the board would accept commands from the ESP32 over UART. Other important Marlin modifications included activating dual X stepper drivers with inverted direction on the second motor, and configuring the servo output on pin D11.\n\nOn the ESP32 side, the gameplay logic is a five-state finite state machine written in Arduino C++: STATE_INIT waits for the PS5 controller to connect via Bluetooth, then auto-homes X and Y. STATE_XY gives the player joystick control over the gantry position; pulling the right trigger with sticks centered initiates a grab. STATE_GRAB runs a blocking automated sequence: open claw, descend 100 mm, close claw, ascend 100 mm. STATE_RETRY lets the player reposition and either pull the right trigger to grab again or the left trigger to dispense. STATE_DISPENSE drives the gantry to a preset drop coordinate at X=250, Y=0, opens the claw, releases the prize, closes the claw, and re-homes.\n\nJoystick signals pass through a deadzone filter and normalized scaling before becoming G1 movement commands sent at 4000 mm/min for XY and 1500 mm/min for Z. Trigger inputs are debounced with a 500 ms window and only register when all joystick axes read as neutral, preventing accidental grabs while the player is still steering.\n\n**Building the frame**\nThe entire structural skeleton is 1 in by 1 in 8020 aluminum extrusion, nine bars total: two 12-inch lengths form the X-axis gantry rails, three 12-inch lengths connect them along Y (one serving as the Y travel rail), and four 16-inch verticals act as corner posts. No L-brackets or corner hardware were used anywhere — each corner joint is made by drilling a through-hole in the vertical post and threading a bolt into the axial end-tap of the adjoining horizontal bar, keeping the top of each post flush with the top surface of the X rail for a clean planar top. Standing height before motors is 16 inches.\n\n**Belt routing**\nEvery axis runs on GT2 timing belts. Each X-rail has its own belt loop stretched between its stepper motor at one end and an idler pulley at the other. The Y-axis belt spans the Y extrusion between the two X carriages. Tension is maintained by press-fitting belt ends directly into the carriage bodies — there are no separate tensioning mechanisms.\n\n**Carriage development**\nAll moving carriages use a three-bearing layout that rides inside the T-slot channels of the 8020 extrusion — two bearings on one side face, one on the opposite face, constraining the carriage laterally while permitting smooth linear travel. This replaced an earlier design based on 3D-printed T-slot adapters that clamped onto the top face of the extrusion, which introduced too much friction and wobbled under moment loads. Switching to bearings in the side-face channels was a dramatic upgrade in motion quality, and we were the only team in our section to pull it off.\n\n**Manufacturing**\nAll custom structural and mechanical components were 3D printed in PLA. We initially tried PLA Silk filament for its glossy finish, but it proved too brittle and dimensionally inconsistent. After experimenting with different flow rates and speeds, we settled on standard engineering-grade PLA for the precision required for press-fit features, bearing seats, and load-bearing carriage parts.\n\nThe main printed parts include the two X-motor housings with T-slot adapters and press-fit limit switch recesses, two idler axle holders that press into end-tap holes, the Y-motor and passive Y carriages in the three-bearing configuration, the Z-motor carriage oriented in the positive-X direction for vertical spool operation, the spool, and the electronics enclosure with embedded nuts, heat-set inserts, board standoffs, and press-fit openings for the power switch and barrel jack.\n\nLaser cutting handled the enclosure panels and the claw parts. Three sides (front and both flanks) are clear acrylic so the prize bed is fully visible. The rear panel is black acrylic to hide the electronics housing, and the base platform is also black acrylic. The claw fingers use stacked acrylic layers for thickness, and the electronics housing lid is clear to showcase the boards and wiring inside.\n\n**Obstacles along the way**\nCable management was one of the trickiest integration problems — the servo cable has to travel through X, Y, and Z simultaneously, and any slack risks drooping into the prize area and catching on the claw. We solved this by measuring exact cable lengths, cutting and soldering to precise dimensions, introducing carefully calibrated slack, and enclosing everything in a rigid sheath that bends in controlled, repeatable arcs without intruding on the working volume.\n\nMaterial selection was another iterative process: the PLA Silk we started with looked great but fractured easily and did not hold tight tolerances, so we switched to standard PLA for dimensional accuracy despite the appearance tradeoff.\n\n**Results**\nThe demo went flawlessly — the system ran with zero failures across every attempt. The claw picked up a range of prizes including small plushies and custom ones we made by iron-on printing sticker transfers of team members' and professors' faces onto fabric.\n\nI took the lead mechanical design role on this project and maintained a 1-to-1 digital twin of our physical product to properly document and organize product design. By doing so, we efficiently worked around material availability constraints such as delivery times, 3D print times, machine shop open hours, and limited resources, ensuring that models were rigorously validated in CAD before manufacturing the component.",
+      "images": [
+        "images/clawd-wirelessly-controlled-3-5-dof-mechanism/1.jpg",
+        "images/clawd-wirelessly-controlled-3-5-dof-mechanism/2.png",
+        "images/clawd-wirelessly-controlled-3-5-dof-mechanism/3.png",
+        "images/clawd-wirelessly-controlled-3-5-dof-mechanism/4.jpg",
+        "images/clawd-wirelessly-controlled-3-5-dof-mechanism/5.jpg",
+        "images/clawd-wirelessly-controlled-3-5-dof-mechanism/6.jpg",
+        "images/clawd-wirelessly-controlled-3-5-dof-mechanism/7.jpg",
+        "images/clawd-wirelessly-controlled-3-5-dof-mechanism/8.jpg",
+        "images/clawd-wirelessly-controlled-3-5-dof-mechanism/9.png"
+      ],
+      "image_captions_from_source": [
+        "Fig. 1: a CAD assembly of the claw",
+        "Fig. 2: final version of claw",
+        "Fig. 3: electronics housing, featuring a 3D printed enclosure with threaded inserts and laser cut acrylic lid with M3 countersinks for a polished appearance",
+        "Fig. 4: a CAD assembly snippet that shows how the aluminum frame was joined; the physical product had concentric access holes drilled through the bar to tighten the bolts during assembly",
+        "Fig. 5: an early prototype of the product showing how carriages implemented the GT2 timing belt",
+        "Fig. 6: the prototype (left) and final (right) carriage designs"
+      ]
+    },
+    {
+      "slug": "bar-balancing-car",
+      "title": "Bar Balancing Car",
+      "summary": "PID-controlled car with ramped acceleration profile that drives between two points without tipping a free-standing bar balanced on top of it.",
+      "description": "Deliverables:\n- Maximum theoretical linear acceleration (calculated as 2.68 ft/s^2 manually, then confirmed with SOLIDWORKS).\n- Video of car traveling 5 ft and back without the bar tipping (simulation predicted 10.32 seconds for a 10 ft round trip, but the demo took 12 seconds due to friction and unaccounted effects in the proportional controller).\n- Controller code (posted to GitHub).",
+      "date": "2026-03-08 (from demo recording filename: Recording 2026-03-08 215558.mp4)",
+      "images": [
+        "images/bar-balancing-car/1.jpg",
+        "images/bar-balancing-car/2.jpg",
+        "images/bar-balancing-car/3.png",
+        "images/bar-balancing-car/4.jpg"
+      ]
+    },
+    {
+      "slug": "analysis-2nd-order-system-linear-potentiometer",
+      "title": "Analysis of 2nd Order System using Linear Potentiometer",
+      "summary": "Complete engineering design and analysis of mass-spring oscillator measurement setup to determine mass position for various driving frequencies.",
+      "description": "My final project for Boston University's Instrumentation and Measurement course, ME310, was to construct a position measurement system for a mass-spring oscillator. The 2nd order system was driven by an electric motor of unknown speed and voltage; only the percent-power indicated by the dial marks on the motor controller could be used to construct the measurement system. The requested deliverables were:\n- Derive the damping coefficient, spring constant, natural frequency, and damping ratio of the system (oscillating mass given as a known value with no uncertainty).\n- Plot magnitude ratio as a function of driving frequency.\n- Plot position against time for various driving frequencies.\n\nThe linear potentiometer (LP) is constructed with a wire and a sliding contact attached to the oscillating mass. By inputting a small voltage across the wire, the LP creates a voltage divider with variable output that can be measured via a DAQ board. The working principle is that the measured voltage output is linearly proportional to the displacement of the oscillating mass.\n\nThe wire's total resistance was measured as 5 Ohm, so to prevent excessive current through the wire, the input voltage was set to 0.1 V. The resulting voltage output of the divider was passed through an inverting differential amplifier with a gain of 100, which was then collected by a DAQ set to a full-scale voltage of ±10 V.\n\nIn order to convert the amplified voltage output to displacement measurements, the amplifier and LP needed to be calibrated using LabVIEW. By producing calibration fits, the experimental setup could be used to measure displacement, providing a means of calculating the requested parameters.\n\nBy attaching weights of known mass, the spring compresses and moves the sliding contact down. Hysteresis was accounted for by increasing the total weight to maximum, then removing weights by the same increments and measuring displacement again. Sampling converted the LP output to displacement, then processed in MATLAB to plot applied force versus displacement; via Hooke's Law, the spring constant was calculated as the absolute value of the slope of the line.\n\nAnalysis of the system's response to various driving frequencies was conducted by incrementing the electric motor's power by 5% (starting from 10%, since the motor did not turn below that) up to 100%, sampling for 10 seconds at 1 kHz. Because the sliding contact was simply a free end of a wire restricted to a small space, it was not always in contact with the potentiometer wire, producing noisy data from open-circuit creation. To extract clean sinusoidal signals, the dominant frequency was identified with a Fourier transform, followed by a low-pass filter and a moving median filter to remove spikes from the contact's disengagement.\n\nThe natural frequency was derived by approximating each signal's period from the distance between sinusoidal peaks. The resonance frequency was estimated by observing the largest amplitude at 45% motor power; since amplitude at resonance can be defined in terms of only the damping ratio, it was computed and used to calculate the average natural frequency of the system.\n\nIn MATLAB, each signal's period was computed by plotting a midline through the data and constructing a square wave to represent where the data lay above/below the midline; the period was estimated by averaging the time distance between respective corners of the square wave. Since lingering noise created spikes around the midline crossing, a Fourier transform was applied to the square wave to produce clean square waves. With the period computed, the maximum data point in each period-interval relative to the midline was extracted as the signal's amplitude, and each interval's maximum was averaged for the average amplitude. Invalid peaks were omitted where they either inaccurately represented system behavior or were misclassified by a first pass of MATLAB's \"findPeaks\" function.\n\nEngineering skills: measurement and uncertainty analysis; signal processing; MATLAB; LabVIEW.",
+      "images": [
+        "images/analysis-2nd-order-system-linear-potentiometer/1.jpg",
+        "images/analysis-2nd-order-system-linear-potentiometer/2.jpg",
+        "images/analysis-2nd-order-system-linear-potentiometer/3.png",
+        "images/analysis-2nd-order-system-linear-potentiometer/4.png",
+        "images/analysis-2nd-order-system-linear-potentiometer/5.png"
+      ],
+      "image_captions_from_source": [
+        null, null, null, null,
+        "Linear Potentiometer Analysis of Mass-Spring Oscillator (setup photo)"
+      ]
+    },
+    {
+      "slug": "coil-winder",
+      "title": "Coil Winder",
+      "summary": "Independent research project for Morphable Biorobotics Lab for rapid manufacturing of air-core electromagnetic coils.",
+      "description": "The coil winder project is an original design I made for use in my research at the Morphable Biorobotics Lab. The device uses two stepper motors to precisely wind copper wire into air-core electromagnets, reducing production time and human error. One motor guides the wire feed by advancing the carriage by one wire-thickness per revolution of the second motor, ensuring the coil winds neatly without overlapping turns.\n\nThe device is controlled by a Teensy 4.0, programmed via Arduino IDE, where user input allows the following parameters to be customized:\n- Wire thickness (reported gauge on stock spool)\n- Desired coil length\n- Desired number of layered windings\n- Winding motor speed\n\nUpon completion, the device holds the motors at rest to prevent the coil from unwinding. The user then applies adhesive to the coil before sliding it off the winding shaft. For best results, heat shrink tubing is applied to the shaft before the device is turned on, allowing the tubing to be slid off the device and then out from inside the coil once the adhesive dries.\n\nThe wire is first fed through the linearly-restricted carriage, then threaded through a 3D-printed eyelet on the rotating shaft, securing one of the coil's terminals; the other terminal is made by cutting the wire free from the spool when winding is complete.\n\nImportant design considerations:\n- Keeping the rotating shaft level and preventing vibration → connect shaft to a bearing and clamp the bearing housing to fix its position.\n- Maintaining constant tension in the wire → hold motors at rest rather than cutting power when the coil is complete; turn the spool to tension the wire prior to starting the device.\n- Preventing tension from snapping the wire if the spool doesn't turn quickly enough → reduce friction by adding a bearing to the spool-holding shaft, letting the winding motor easily turn the large spool.\n- Ensuring windings remained organized as layers were added → program the winding motor to halt and the linear motor to pull wire on top of the previous layer upon reaching the end of the coil length, then reposition the wire exactly at the end of the coil before resuming winding.\n\nThe coils manufactured for research were required to be 10 mm in length and 1 mm in diameter. The depicted coil (photographed next to a wallet for scale) has 4 layers of windings to maximize magnetic field strength for testing purposes.\n\nEngineering skills: prototyping and iterative design; laser cutting; 3D printing; Arduino IDE.",
+      "images": [
+        "images/coil-winder/1.jpg",
+        "images/coil-winder/2.jpg",
+        "images/coil-winder/3.jpg",
+        "images/coil-winder/4.jpg",
+        "images/coil-winder/5.jpg"
+      ]
+    },
+    {
+      "slug": "linear-motor-control-soft-robotic-actuators",
+      "title": "Linear Motor Control System for Soft Robotic Actuators",
+      "summary": "Actuation system for Stacked Balloon Actuators for use in a surgical robotics platform.",
+      "description": null,
+      "images": [
+        "images/linear-motor-control-soft-robotic-actuators/1.jpg",
+        "images/linear-motor-control-soft-robotic-actuators/2.jpg",
+        "images/linear-motor-control-soft-robotic-actuators/3.jpg",
+        "images/linear-motor-control-soft-robotic-actuators/4.jpg",
+        "images/linear-motor-control-soft-robotic-actuators/5.jpg"
+      ]
+    },
+    {
+      "slug": "multi-robot-navigator",
+      "title": "Multi-Robot Navigator",
+      "summary": "Python controller and simulator for multiple AgileX LIMO robots attempting to reach distinct goal positions simultaneously.",
+      "description": null,
+      "media_note": "Source page had only a 'Visit GitHub repo for code here!' link, no written description or retrievable photos.",
+      "images": []
+    },
+    {
+      "slug": "obstacle-course-navigator",
+      "title": "Obstacle Course Navigator",
+      "summary": "MATLAB code for AgileX LIMO robot path planning with motion capture feedback controller.",
+      "description": null,
+      "media_note": "Source page had a 'Visit GitHub repo for code here!' link and an embedded video (ME416 Lab 2.mov).",
+      "images": [
+        "images/obstacle-course-navigator/1.png",
+        "images/obstacle-course-navigator/2.png",
+        "images/obstacle-course-navigator/3.png"
+      ]
+    },
+    {
+      "slug": "blue-line-following-robot",
+      "title": "Blue-Line Following Robot",
+      "summary": "MATLAB-based computer vision navigation for AgileX LIMO robots.",
+      "description": null,
+      "media_note": "Source page had only a 'Visit GitHub repo for code here!' link and embedded .mov video files; no written description or retrievable photos.",
+      "images": []
+    },
+    {
+      "slug": "e-bike-conversion",
+      "title": "E-Bike Conversion",
+      "summary": null,
+      "description": null,
+      "media_note": "Source page had no written description and no retrievable photos.",
+      "images": []
+    },
+    {
+      "slug": "gait-tracker",
+      "title": "Gait Tracker",
+      "summary": "Wearable device that detects steps with light sensors attached to the wearer's shoe, featuring a modular-fit mounting.",
+      "description": "The Gait Tracker is a wearable device engineered for use in physical therapy. The device is intended to be worn in a clinic, where the wearer's exact heel-toe strikes are relayed to a trainer with visual and auditory cues.\n\nTo maximize versatility, the Gait Tracker is designed to fit comfortably on various users. The device consists of two parts featuring adjustable straps: the leg-mounted main electronics housing, and the shoe-mounted tracking light sensors.",
+      "media_note": "Source page had an embedded demo video (filename stylized as 'No PAIN, no GAIN GAIT.mov'); no retrievable photos.",
+      "images": []
+    },
+    {
+      "slug": "eye-tracker",
+      "title": "Eye Tracker",
+      "summary": "MATLAB computer-vision project that tracks iris of user's eyes.",
+      "description": "The Eye Tracker is a MATLAB-based computer vision utility. It specifically detects dark circles surrounded by light space, allowing it to draw a boundary in real-time around the irises of one's eyes.",
+      "images": [
+        "images/eye-tracker/1.png"
+      ]
+    },
+    {
+      "slug": "banana-finder",
+      "title": "Banana Finder",
+      "summary": "Leverages mini YOLOv4 in MATLAB to identify valid bananas with published levels of confidence.",
+      "description": null,
+      "media_note": "Source page had only a 'Visit GitHub repo for code here!' link and an embedded demo video (Screen_Recording_2025-09-23_161617.mp4); no written description or retrievable photos.",
+      "date": "2025-09-23 (from demo recording filename)",
+      "images": []
+    },
+    {
+      "slug": "room-temperature-monitor",
+      "title": "Room Temperature Monitor",
+      "summary": "Tracks ambient temperature and alerts user with sound and lights if temperature is outside of a desirable range.",
+      "description": "The Room Temperature Monitor is a device designed to alert the user if the ambient room temperature is outside of a desirable range. The Monitor uses an Arduino Uno and TMP36 temperature sensor to sense temperature and trigger both a red light and buzzer as alarms for non-desirable temperatures.\n\nThe device is powered by a 9V battery, which is held in a custom 3D-printed housing. The housing features a sliding cover that allows for easy replacement of the battery and a means of securing the battery inside the device.",
+      "media_note": "Source page also linked a report: 'EK131 Technical Engineering Report.pdf' (not retrieved).",
+      "images": [
+        "images/room-temperature-monitor/1.png",
+        "images/room-temperature-monitor/2.png",
+        "images/room-temperature-monitor/3.png"
+      ]
+    }
+  ],
+
+  "models_and_designs": {
+    "intro": "Click on each to view details and download STL files!",
+    "items": [
+      {
+        "slug": "syringe-case",
+        "title": "Syringe Case",
+        "description": "Case with sliding lid, for use with 3 McMaster-Carr 6500T58 Glass Syringes.",
+        "images": ["images/syringe-case/1.png", "images/syringe-case/2.png"]
+      },
+      {
+        "slug": "wheel-and-tire-assembly",
+        "title": "Wheel and Tire Assembly",
+        "description": "95 mm diameter including TPU tire. Designed for 5 mm axle, has flush-fit holes for M3 bolts (8 mm bolt circle) to secure a flange mount shaft collar.",
+        "images": ["images/wheel-and-tire-assembly/1.png", "images/wheel-and-tire-assembly/2.png"]
+      },
+      {
+        "slug": "helmet-holder",
+        "title": "Helmet Holder",
+        "description": "Wall-mounted bracket with holes for nails.",
+        "images": ["images/helmet-holder/1.png", "images/helmet-holder/2.png"]
+      },
+      {
+        "slug": "contoured-handle",
+        "title": "Contoured Handle",
+        "description": "Handle with 130mm distance between hole centers.",
+        "images": ["images/contoured-handle/1.png", "images/contoured-handle/2.png"]
+      },
+      {
+        "slug": "six-t-puzzle",
+        "title": "Six \"T\" Puzzle",
+        "description": "Puzzle game where six \"T\"-shaped blocks must fit flush in the box.",
+        "images": ["images/six-t-puzzle/1.png"]
+      },
+      {
+        "slug": "nine-volt-battery-holder",
+        "title": "9V Battery Holder",
+        "description": "Holder with sliding cover and cutouts to grip battery for ease of replacement.",
+        "images": ["images/nine-volt-battery-holder/1.png"]
+      }
+    ]
+  }
+}
