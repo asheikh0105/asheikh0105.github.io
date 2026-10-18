@@ -32,6 +32,43 @@ const CURSOR_PLANE_Z = 1.0
 const CURSOR_OFFSET = 1.5
 const MIN_REACH = 1.5 // never pull the target closer to the shoulder than this
 const TWIRL_RATE = 9 // damping of the click twirl (higher = snappier)
+
+// Dance mode: a looping 4-bar routine drives the tip (targets are relative to the
+// base, in the same space as the cursor target) and the gripper twirls on the beat.
+const BEAT = 0.55 // seconds (about 110 bpm)
+const BAR = BEAT * 4
+const DANCE_R = 3.0 // tip distance from the vertical axis while dancing
+const BALL_REST_Y = 3.5 // world height of the disco ball when dropped
+const BALL_HIDDEN_Y = 8 // above the top of the view
+
+// Tip target (base-relative) and whether to twirl, for dance time t (seconds).
+// phi is the yaw of the tip; negative phi swings it through the camera side.
+function danceTarget(t, out) {
+  const bar = Math.floor(t / BAR) % 4
+  const u = (t % BAR) / BAR
+  let phi
+  let y
+  let r = DANCE_R
+  if (bar === 0) {
+    // pump: arm leans toward the camera and pumps up and down twice
+    phi = -0.4 * Math.sin(Math.PI * u)
+    y = 3.0 + 1.1 * Math.sin(Math.PI * 4 * u)
+    r = DANCE_R + 0.2
+  } else if (bar === 1) {
+    // swing: right -> left through the front -> back to the right
+    phi = -Math.PI * (0.5 - 0.5 * Math.cos(Math.PI * 2 * u))
+    y = 2.9 + 0.5 * Math.sin(Math.PI * 4 * u)
+  } else if (bar === 2) {
+    // spin: one full turn about the base
+    phi = -Math.PI * 2 * u
+    y = 3.0 + 0.6 * Math.sin(Math.PI * 4 * u)
+  } else {
+    // wave: tip waves in the air
+    phi = -0.3 * Math.sin(Math.PI * 4 * u)
+    y = 3.3 + 0.9 * Math.sin(Math.PI * 8 * u)
+  }
+  return out.set(r * Math.cos(phi), y, -r * Math.sin(phi))
+}
 const REST_TARGET = new THREE.Vector3(3.2, 1.6, CURSOR_PLANE_Z) // where the arm waits before the cursor moves
 
 const damp = THREE.MathUtils.damp
@@ -288,7 +325,161 @@ function BasePedestal({ yawRef, children }) {
   )
 }
 
-function ArmRig({ paused, pointer }) {
+// Studio lighting + background. Dance mode "turns out the lights": the white page
+// and the studio lights fade to a dark navy (not black); the disco lights stay as is.
+const WHITE = new THREE.Color('#ffffff')
+const NIGHT = new THREE.Color('#1a1e2a')
+function Stage({ dark }) {
+  const hemi = useRef()
+  const sun = useRef()
+  const k = useRef(0)
+  useFrame(({ scene }, dt) => {
+    k.current = damp(k.current, dark ? 1 : 0, 2, Math.min(dt, 0.05))
+    const v = k.current
+    if (scene.background?.isColor) scene.background.lerpColors(WHITE, NIGHT, v)
+    hemi.current.intensity = 0.7 + (0.14 - 0.7) * v
+    sun.current.intensity = 1.4 + (0.3 - 1.4) * v
+    scene.environmentIntensity = 1 + (0.18 - 1) * v
+  })
+  return (
+    <>
+      <color attach="background" args={['#ffffff']} />
+      <hemisphereLight ref={hemi} args={['#ffffff', '#cfd6e0', 0.7]} />
+      <directionalLight ref={sun} position={[4, 7, 6]} intensity={1.4} castShadow shadow-mapSize={[2048, 2048]} />
+    </>
+  )
+}
+
+// Disco ball hung from a thin line above the arm. It drops from above the top of
+// the view when dancing starts and is pulled back up when it stops. Bright
+// colour-cycling rays fan out from the ball (additive beams that fade with distance
+// and turn with the ball), and five saturated coloured lights orbit it to colour the arm.
+const RAY_COUNT = 30
+const RAY_LENGTH = 11
+
+// Soft fade along a beam: bright at the ball, dark at the far end (used as an alphaMap).
+function makeBeamFade() {
+  const c = document.createElement('canvas')
+  c.width = 4
+  c.height = 64
+  const g = c.getContext('2d')
+  const grad = g.createLinearGradient(0, 0, 0, 64)
+  grad.addColorStop(0, '#ffffff')
+  grad.addColorStop(0.35, '#7a7a7a')
+  grad.addColorStop(1, '#000000')
+  g.fillStyle = grad
+  g.fillRect(0, 0, 4, 64)
+  return new THREE.CanvasTexture(c)
+}
+
+function makeRays() {
+  const fade = makeBeamFade()
+  const geometry = new THREE.CylinderGeometry(0.012, 0.3, RAY_LENGTH, 14, 1, true)
+  geometry.translate(0, -RAY_LENGTH / 2, 0) // narrow end at the origin, beam points down (-y)
+  const group = new THREE.Group()
+  const down = new THREE.Vector3(0, -1, 0)
+  for (let i = 0; i < RAY_COUNT; i++) {
+    // Fibonacci sphere: evenly spread directions
+    const yy = 1 - (2 * (i + 0.5)) / RAY_COUNT
+    const rr = Math.sqrt(1 - yy * yy)
+    const th = i * 2.399963
+    const dir = new THREE.Vector3(Math.cos(th) * rr, yy, Math.sin(th) * rr)
+    const material = new THREE.MeshBasicMaterial({
+      alphaMap: fade,
+      transparent: true,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+      opacity: 0,
+    })
+    const mesh = new THREE.Mesh(geometry, material)
+    mesh.quaternion.setFromUnitVectors(down, dir)
+    group.add(mesh)
+  }
+  return group
+}
+
+const DISCO_COLOURS = ['#ff3da8', '#18c8ff', '#ffb020', '#3dff8a', '#9a5cff']
+
+function DiscoBall({ active }) {
+  const group = useRef()
+  const ball = useRef()
+  const line = useRef()
+  const lights = useRef([])
+  const drop = useRef(0) // 0 = hidden, 1 = hanging
+  const raysHolder = useRef() // group that holds the beams (built once, below)
+  const tint = useRef(new THREE.Color())
+
+  useEffect(() => {
+    const holder = raysHolder.current
+    const rays = makeRays()
+    holder.add(rays)
+    return () => {
+      holder.remove(rays)
+      rays.children[0]?.geometry.dispose()
+      rays.children.forEach((r) => r.material.dispose())
+    }
+  }, [])
+
+  useFrame(({ clock }, dt) => {
+    const step = Math.min(dt, 0.05)
+    drop.current = damp(drop.current, active ? 1 : 0, active ? 2.4 : 3.2, step)
+    const k = drop.current
+    const t = clock.elapsedTime
+    const y = BALL_HIDDEN_Y + (BALL_REST_Y - BALL_HIDDEN_Y) * (1 - Math.pow(1 - k, 3)) + Math.sin(t * 2) * 0.03 * k
+    group.current.visible = k > 0.005
+    group.current.position.set(0, y, 0)
+    ball.current.rotation.y = t * 0.6
+    line.current.scale.y = 6
+    line.current.position.y = 3 + 0.5
+
+    // rays turn slowly with the ball, cycle through the rainbow and pulse
+    const rays = raysHolder.current.children[0]
+    if (rays) {
+      rays.rotation.y = t * 0.45
+      rays.rotation.z = Math.sin(t * 0.3) * 0.25
+    }
+    rays?.children.forEach((ray, i) => {
+      tint.current.setHSL((i / RAY_COUNT + t * 0.05) % 1, 1, 0.58)
+      ray.material.color.copy(tint.current)
+      ray.material.opacity = 0.55 * k * (0.65 + 0.35 * Math.sin(t * 2.2 + i * 1.7))
+    })
+
+    lights.current.forEach((light, i) => {
+      if (!light) return
+      const a = t * (0.5 + i * 0.11) + (i * Math.PI * 2) / DISCO_COLOURS.length
+      light.position.set(Math.cos(a) * 4.5, -0.5 + Math.sin(t * 0.7 + i) * 1.4, 2 + Math.sin(a) * 3.2)
+      light.intensity = 26 * k * (0.75 + 0.25 * Math.sin(t * 1.3 + i * 2))
+    })
+  })
+  return (
+    <group ref={group} visible={false}>
+      <mesh ref={line}>
+        <cylinderGeometry args={[0.015, 0.015, 1, 6]} />
+        <meshStandardMaterial color="#8a94a6" />
+      </mesh>
+      <mesh ref={ball} castShadow>
+        <icosahedronGeometry args={[0.55, 2]} />
+        <meshStandardMaterial color="#d9dee8" metalness={1} roughness={0.12} flatShading emissive="#8f98a8" emissiveIntensity={0.35} />
+      </mesh>
+      <group ref={raysHolder} />
+      {DISCO_COLOURS.map((c, i) => (
+        <pointLight
+          key={c}
+          ref={(l) => {
+            lights.current[i] = l
+          }}
+          color={c}
+          intensity={0}
+          distance={18}
+          decay={2}
+        />
+      ))}
+    </group>
+  )
+}
+
+function ArmRig({ paused, pointer, dancing, fullReach }) {
   const yawRef = useRef()
   const j1 = useRef()
   const j2 = useRef()
@@ -298,6 +489,8 @@ function ArmRig({ paused, pointer }) {
   const cfg = useRef(null)
   const lastSafe = useRef(REST_TARGET.clone())
   const twirl = useRef({ angle: 0, target: 0, handled: 0 })
+  const dance = useRef({ t: 0, blend: 0, beat: -1 })
+  const danceTip = useRef(new THREE.Vector3())
 
   const groupRef = useRef()
 
@@ -319,11 +512,33 @@ function ArmRig({ paused, pointer }) {
       // Pull the target back toward the shoulder by CURSOR_OFFSET (plain offset, no collision logic).
       const shoulder = new THREE.Vector3(0, SHOULDER_Y, 0)
       const toCursor = desired.clone().sub(shoulder)
-      const reach = Math.max(toCursor.length() - CURSOR_OFFSET, MIN_REACH)
+      // Over the dance button the offset is dropped: the arm reaches all the way to the cursor.
+      const offset = fullReach ? 0 : CURSOR_OFFSET
+      const reach = Math.max(toCursor.length() - offset, MIN_REACH)
       desired.copy(shoulder).addScaledVector(toCursor.normalize(), reach)
       desired.y = Math.max(desired.y, MIN_TARGET_Y) // keep the target out of the floor
     } else {
       desired.copy(lastSafe.current)
+    }
+
+    // 1b. Dance mode: blend from the cursor target to the routine's target.
+    const d = dance.current
+    d.blend = damp(d.blend, dancing ? 1 : 0, dancing ? 2.5 : 3, step)
+    if (dancing) d.t += step
+    else if (d.blend < 0.01) d.t = 0
+    if (d.blend > 0.001) {
+      desired.lerp(danceTarget(d.t, danceTip.current), d.blend)
+      desired.y = Math.max(desired.y, MIN_TARGET_Y)
+      // gripper twirl on selected beats: every bar start, and twice in the wave bar
+      const beatNo = Math.floor(d.t / BEAT)
+      if (dancing && beatNo !== d.beat) {
+        d.beat = beatNo
+        const inBar = beatNo % 4
+        const bar = Math.floor(beatNo / 4) % 4
+        if ((inBar === 0 && bar !== 1) || (bar === 3 && inBar === 2)) twirl.current.target += Math.PI * 2
+      }
+    } else {
+      d.beat = -1
     }
 
     // 2. Target -> joint configuration. solveSafe walks from the last reachable
@@ -463,7 +678,7 @@ function ArmRig({ paused, pointer }) {
   )
 }
 
-export default function Arm({ paused = false }) {
+export default function Arm({ paused = false, dancing = false, fullReach = false }) {
   // Normalised cursor position (-1..1); a ref so mouse moves never re-render React.
   const pointer = useRef({ x: 0, y: 0, seen: false, lastMove: 0, clicks: 0 })
 
@@ -494,9 +709,7 @@ export default function Arm({ paused = false }) {
       gl={{ antialias: true, powerPreference: 'high-performance' }}
       camera={CAMERA}
     >
-      <color attach="background" args={['#ffffff']} />
-      <hemisphereLight args={['#ffffff', '#cfd6e0', 0.7]} />
-      <directionalLight position={[4, 7, 6]} intensity={1.4} castShadow shadow-mapSize={[2048, 2048]} />
+      <Stage dark={dancing} />
       <Environment resolution={256}>
         {/* Soft studio dome: big, even panels above, beside and below, so the
             reflections change gradually with angle instead of flashing. */}
@@ -507,7 +720,8 @@ export default function Arm({ paused = false }) {
         <Lightformer form="rect" target intensity={0.9} position={[0, -6, 3]} scale={[20, 6, 1]} />
         <Lightformer form="rect" target intensity={1.0} position={[0, 3, -9]} scale={[18, 8, 1]} />
       </Environment>
-      <ArmRig paused={paused} pointer={pointer} />
+      <ArmRig paused={paused} pointer={pointer} dancing={dancing} fullReach={fullReach} />
+      <DiscoBall active={dancing} />
     </Canvas>
   )
 }

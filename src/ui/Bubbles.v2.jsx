@@ -60,7 +60,7 @@ function Icon({ name }) {
   )
 }
 
-export function Bubble({ slot, label, thumb, icon, tone = 'photo', onClick, index = 0, large = false, scale = RING_SCALE, thumbZoom, boxPx }) {
+export function Bubble({ slot, label, thumb, icon, tone = 'photo', onClick, index = 0, large = false, scale = RING_SCALE, thumbZoom, boxPx, dark = false }) {
   const size = sizeFor(scale)
   // boxPx = explicit picture size in px (the tall About Me bubble)
   const width = boxPx ? `${boxPx.w}px` : `calc(${size} * ${RECT_W})`
@@ -98,7 +98,7 @@ export function Bubble({ slot, label, thumb, icon, tone = 'photo', onClick, inde
           )}
         </span>
         <span
-          className={`absolute left-1/2 top-full mt-3 line-clamp-2 w-max -translate-x-1/2 pb-1 text-center font-medium leading-snug text-slate-800 ${
+          className={`absolute left-1/2 top-full mt-3 line-clamp-2 w-max -translate-x-1/2 pb-1 text-center font-medium leading-snug transition-colors duration-1000 ${dark ? 'text-slate-100' : 'text-slate-800'} ${
             large ? 'max-w-[16rem] text-xl' : 'max-w-[13rem] text-base'
           }`}
         >

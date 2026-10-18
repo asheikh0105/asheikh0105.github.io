@@ -46,6 +46,16 @@ function App() {
 
   const [view, setView] = useState(HOME)
 
+  // Dance mode (button on the home page): the arm dances, a disco ball drops and a
+  // soft colour wash plays. fullReach drops the cursor offset while hovering the button.
+  const [dancing, setDancing] = useState(false)
+  const [overDance, setOverDance] = useState(false)
+  // Leaving the home page (via a bubble) stops the dance.
+  const leaveHome = () => {
+    setDancing(false)
+    setOverDance(false)
+  }
+
   // Bubble sizes and positions are fitted to the window (see layout.v2.js).
   const [win, setWin] = useState(() => ({ w: window.innerWidth, h: window.innerHeight }))
   useEffect(() => {
@@ -66,8 +76,10 @@ function App() {
 
   // Which side of the screen a bubble sits on decides where the text goes.
   const sideOf = (slot) => (slot.x < 50 ? 'left' : 'right')
-  const openDetail = (item, slot, returnTo) =>
+  const openDetail = (item, slot, returnTo) => {
+    leaveHome()
     setView({ name: 'detail', item, side: sideOf(slot), returnTo })
+  }
 
   let bubbles
   let panels = null
@@ -80,6 +92,7 @@ function App() {
         <Bubble
           key={bubble.key}
           large
+          dark={dancing}
           scale={home.scale}
           boxPx={bubble.key === 'about' ? home.aboutBox : undefined}
           index={i}
@@ -88,11 +101,12 @@ function App() {
           thumb={bubble.thumb}
           thumbZoom={bubble.thumbZoom}
           icon={bubble.icon}
-          onClick={() =>
-            bubble.kind === 'ring'
-              ? setView({ name: 'ring', section: bubble.key, page: 0 })
-              : openDetail(terminals[bubble.key], slot, HOME)
-          }
+          onClick={() => {
+            if (bubble.kind === 'ring') {
+              leaveHome()
+              setView({ name: 'ring', section: bubble.key, page: 0 })
+            } else openDetail(terminals[bubble.key], slot, HOME)
+          }}
         />
       )
     })
@@ -150,22 +164,60 @@ function App() {
   // Remount (and so re-animate) the bubbles whenever the arrangement changes.
   const viewKey = `${view.name}-${view.section ?? ''}-${view.page ?? ''}-${view.item?.slug ?? ''}`
 
+  // Dance button geometry (px): top = bottom of the About Me caption text, bottom = the
+  // arm base's bottom edge (one title margin above the page bottom). Min height 44 px.
+  const homeGeom = homeLayout(win.w, win.h)
+  const baseBottom = win.w >= 768 ? 48 : 24
+  const aboutTextBottom = (homeGeom.slots[2].y / 100) * win.h + homeGeom.aboutBox.h / 2 + 40
+  const danceTop = Math.min(aboutTextBottom, win.h - baseBottom - 44)
+  // Half that height, keeping the same vertical centre (min 44 px).
+  const danceSpan = win.h - baseBottom - danceTop
+  const danceHeight = Math.max(danceSpan / 2, 44)
+  const danceMid = danceTop + danceSpan / 2
+
   return (
-    <div className="relative min-h-screen w-screen bg-white">
+    <div className={`relative min-h-screen w-screen transition-colors duration-1000 ${dancing ? 'bg-[#1a1e2a]' : 'bg-white'}`}>
       <div className="fixed inset-0 z-0 overflow-hidden">
-        <Arm />
+        <Arm dancing={dancing} fullReach={overDance && view.name === 'home'} />
       </div>
+
+      {dancing && <div className="disco-wash pointer-events-none fixed inset-0 z-[1]" />}
 
       <div className="pointer-events-none fixed inset-0 z-10">
         <header className="pointer-events-auto fixed left-6 top-6 md:left-12 md:top-12">
-          <h1 className="text-2xl font-semibold tracking-tight text-slate-900 md:text-3xl">Aamir Sheikh</h1>
-          <p className="mt-1 text-sm text-slate-600 md:text-base">Mechanical Engineering · Robotics</p>
+          <h1 className={`text-2xl font-semibold tracking-tight transition-colors duration-1000 md:text-3xl ${dancing ? 'text-slate-100' : 'text-slate-900'}`}>Aamir Sheikh</h1>
+          <p className={`mt-1 text-sm transition-colors duration-1000 md:text-base ${dancing ? 'text-slate-300' : 'text-slate-600'}`}>Mechanical Engineering · Robotics</p>
         </header>
 
         <div key={viewKey} className="absolute inset-0">
           {bubbles}
           {panels}
         </div>
+
+        {view.name === 'home' && (
+          <button
+            type="button"
+            onClick={() => setDancing((d) => !d)}
+            onPointerEnter={() => setOverDance(true)}
+            onPointerLeave={() => setOverDance(false)}
+            aria-pressed={dancing}
+            // Between the About Me bubble and the robot's base. Its centre is the middle of the
+            // span from the bottom of the About Me caption text to the base's bottom edge;
+            // its height is half that span.
+            style={{ top: danceMid - danceHeight / 2, height: danceHeight }}
+            className={`pointer-events-auto fixed left-[66%] flex w-[9.25rem] -translate-x-1/2 flex-col items-center justify-center gap-2 rounded-3xl px-3 text-center text-sm font-medium shadow-lg ring-2 transition duration-500 hover:scale-105 ${
+              dancing
+                ? 'bg-white/10 text-white shadow-black/40 ring-white/30 hover:bg-white/20'
+                : 'bg-white text-slate-800 shadow-slate-400/50 ring-white hover:bg-slate-50'
+            }`}
+          >
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="13" r="8" />
+              <path d="M12 2v3M4.5 10h15M4.5 16h15M12 5v16M8 6.5c-1.5 3.5-1.5 8.5 0 13M16 6.5c1.5 3.5 1.5 8.5 0 13" />
+            </svg>
+            {dancing ? 'Stop dancing' : 'Dance mode'}
+          </button>
+        )}
       </div>
     </div>
   )
