@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import Arm from './arm/Arm.v2.jsx'
-import { homeBubbles, sections, terminals } from './ui/content.v2.js'
-import { BACK_SLOT, MORE_SLOT, RING_ITEMS_PER_PAGE, homeSlot, ringSlot } from './ui/layout.v2.js'
+import { hasSmallVideo, homeBubbles, sections, terminals } from './ui/content.v2.js'
+import { BACK_SLOT, MORE_SLOT, NAV_SCALE, RING_ITEMS_PER_PAGE, homeLayout, ringLayout } from './ui/layout.v2.js'
 import { Bubble, ImagePanel, TextPanel } from './ui/Bubbles.v2.jsx'
 import { startPreload } from './ui/preload.v2.js'
 
@@ -11,6 +11,9 @@ import { startPreload } from './ui/preload.v2.js'
 //   { name: 'ring',   section, page }            a ring of project/design bubbles
 //   { name: 'detail', item, side, returnTo }     text + images flanking the arm
 const HOME = { name: 'home' }
+
+// Back in a ring: previous page, or home from the first page.
+const ringBack = (v) => (v.page > 0 ? { ...v, page: v.page - 1 } : HOME)
 
 function App() {
   // Lock browser zoom (ctrl/cmd +, -, 0 and ctrl+wheel, plus Safari pinch) so
@@ -43,11 +46,19 @@ function App() {
 
   const [view, setView] = useState(HOME)
 
+  // Bubble sizes and positions are fitted to the window (see layout.v2.js).
+  const [win, setWin] = useState(() => ({ w: window.innerWidth, h: window.innerHeight }))
+  useEffect(() => {
+    const onResize = () => setWin({ w: window.innerWidth, h: window.innerHeight })
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [])
+
   // Escape = the Back bubble.
   useEffect(() => {
     const onKey = (event) => {
       if (event.key !== 'Escape') return
-      setView((v) => (v.name === 'detail' ? v.returnTo : v.name === 'ring' ? HOME : v))
+      setView((v) => (v.name === 'detail' ? v.returnTo : v.name === 'ring' ? ringBack(v) : v))
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
@@ -62,16 +73,20 @@ function App() {
   let panels = null
 
   if (view.name === 'home') {
+    const home = homeLayout(win.w, win.h)
     bubbles = homeBubbles.map((bubble, i) => {
-      const slot = homeSlot(i)
+      const slot = home.slots[i]
       return (
         <Bubble
           key={bubble.key}
           large
+          scale={home.scale}
+          boxPx={bubble.key === 'about' ? home.aboutBox : undefined}
           index={i}
           slot={slot}
           label={bubble.label}
           thumb={bubble.thumb}
+          thumbZoom={bubble.thumbZoom}
           icon={bubble.icon}
           onClick={() =>
             bubble.kind === 'ring'
@@ -82,41 +97,48 @@ function App() {
       )
     })
   } else if (view.name === 'ring') {
+    const ring = ringLayout(win.w, win.h)
     const items = sections[view.section]
     const pages = Math.max(1, Math.ceil(items.length / RING_ITEMS_PER_PAGE))
     const pageItems = items.slice(view.page * RING_ITEMS_PER_PAGE, (view.page + 1) * RING_ITEMS_PER_PAGE)
     bubbles = (
       <>
-        <Bubble key="back" index={0} slot={BACK_SLOT} label="Back" icon="back" tone="action" onClick={() => setView(HOME)} />
+        <Bubble key="back" index={0} slot={ring.slots[0]} label="Back" icon="back" tone="action" scale={NAV_SCALE} onClick={() => setView(ringBack(view))} />
         {pageItems.map((item, i) => {
-          const slot = ringSlot(i + 1)
+          const slot = ring.slots[i + 1]
           return (
             <Bubble
               key={item.slug}
               index={i + 1}
               slot={slot}
+              scale={ring.scale}
               label={item.title}
-              thumb={item.images[0]}
+              thumb={item.thumb ?? item.images[0]}
+              thumbZoom={item.thumbZoom}
               onClick={() => openDetail(item, slot, view)}
             />
           )
         })}
-        {pages > 1 && (
+        {view.page < pages - 1 && (
           <Bubble
             key="more"
             index={7}
-            slot={MORE_SLOT}
+            slot={ring.slots[7]}
             label="More"
             icon="more"
             tone="action"
-            onClick={() => setView({ ...view, page: (view.page + 1) % pages })}
+            scale={NAV_SCALE}
+            onClick={() => setView({ ...view, page: view.page + 1 })}
           />
         )}
       </>
     )
   } else {
     const imageSide = view.side === 'left' ? 'right' : 'left'
-    bubbles = <Bubble key="back" index={0} slot={BACK_SLOT} label="Back" icon="back" tone="action" onClick={() => setView(view.returnTo)} />
+    // The small video panel hangs under the photos; if that is the left column it
+    // would sit on the usual bottom-left Back bubble, so Back moves to the other corner.
+    const backSlot = hasSmallVideo(view.item) && imageSide === 'left' ? MORE_SLOT : BACK_SLOT
+    bubbles = <Bubble key="back" index={0} slot={backSlot} label="Back" icon="back" tone="action" onClick={() => setView(view.returnTo)} />
     panels = (
       <>
         <TextPanel item={view.item} side={view.side} />

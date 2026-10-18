@@ -43,7 +43,7 @@ export function startPreload() {
   if (started) return
   started = true
 
-  const thumbs = (items) => items.map((item) => item.images[0])
+  const thumbs = (items) => items.map((item) => item.thumb ?? item.images[0])
   const rest = (items) => items.flatMap((item) => item.images.slice(1))
 
   const tiers = [

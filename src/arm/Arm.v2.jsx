@@ -21,9 +21,17 @@ import { buildForkedLink } from './link2.v2.js'
 const BASE = new THREE.Vector3(0, -2.6, 0)
 const MIN_TARGET_Y = 0.4
 const EXT_VISUAL = 0.5 // fraction of the solved rod extension that is actually drawn
-const CAMERA = { position: [0, 0.4, 12.5], fov: 34 }
+// The arm is drawn at ARM_SCALE of its original on-screen size by pulling the
+// camera back (placeBase and the cursor ray both follow the camera).
+const ARM_SCALE = 0.85
+const CAMERA = { position: [0, 0.4, 12.5 / ARM_SCALE], fov: 34 }
 const PLINTH_RADIUS = 1.7 // front edge of the base, used to find its lowest screen pixel
 const CURSOR_PLANE_Z = 1.0
+// The tip never goes all the way to the cursor: it stops CURSOR_OFFSET short, on
+// the line from the shoulder to the cursor, so the arm stays out of the bubbles.
+const CURSOR_OFFSET = 1.5
+const MIN_REACH = 1.5 // never pull the target closer to the shoulder than this
+const TWIRL_RATE = 9 // damping of the click twirl (higher = snappier)
 const REST_TARGET = new THREE.Vector3(3.2, 1.6, CURSOR_PLANE_Z) // where the arm waits before the cursor moves
 
 const damp = THREE.MathUtils.damp
@@ -289,6 +297,7 @@ function ArmRig({ paused, pointer }) {
   const gripRef = useRef()
   const cfg = useRef(null)
   const lastSafe = useRef(REST_TARGET.clone())
+  const twirl = useRef({ angle: 0, target: 0, handled: 0 })
 
   const groupRef = useRef()
 
@@ -307,6 +316,11 @@ function ArmRig({ paused, pointer }) {
       const planeZ = BASE.z + CURSOR_PLANE_Z
       const k = (planeZ - camera.position.z) / ray.z
       desired.copy(camera.position).addScaledVector(ray, k).sub(BASE)
+      // Pull the target back toward the shoulder by CURSOR_OFFSET (plain offset, no collision logic).
+      const shoulder = new THREE.Vector3(0, SHOULDER_Y, 0)
+      const toCursor = desired.clone().sub(shoulder)
+      const reach = Math.max(toCursor.length() - CURSOR_OFFSET, MIN_REACH)
+      desired.copy(shoulder).addScaledVector(toCursor.normalize(), reach)
       desired.y = Math.max(desired.y, MIN_TARGET_Y) // keep the target out of the floor
     } else {
       desired.copy(lastSafe.current)
@@ -366,6 +380,19 @@ function ArmRig({ paused, pointer }) {
     rodRef.current.scale.y = rodLen
     rodRef.current.position.x = L3 - SLEEVE_IN + rodLen / 2
     gripRef.current.position.x = L3 + TOOL + visExt
+
+    // Click twirl: every click adds one full turn about the rod axis; the gripper
+    // chases it with fast exponential damping (a snappy flick), then resets to 0.
+    const tw = twirl.current
+    if (pointer.current.clicks > tw.handled) {
+      tw.target += (pointer.current.clicks - tw.handled) * Math.PI * 2
+      tw.handled = pointer.current.clicks
+    }
+    if (tw.target > 0) {
+      tw.angle = damp(tw.angle, tw.target, TWIRL_RATE, step)
+      if (tw.target - tw.angle < 0.01) tw.angle = tw.target = 0
+    }
+    gripRef.current.rotation.x = tw.angle
   })
 
   return (
@@ -438,7 +465,7 @@ function ArmRig({ paused, pointer }) {
 
 export default function Arm({ paused = false }) {
   // Normalised cursor position (-1..1); a ref so mouse moves never re-render React.
-  const pointer = useRef({ x: 0, y: 0, seen: false, lastMove: 0 })
+  const pointer = useRef({ x: 0, y: 0, seen: false, lastMove: 0, clicks: 0 })
 
   // The canvas sits under the page UI, so listen on the window.
   useEffect(() => {
@@ -448,8 +475,15 @@ export default function Arm({ paused = false }) {
       pointer.current.seen = true
       pointer.current.lastMove = performance.now()
     }
+    const onClick = () => {
+      pointer.current.clicks += 1
+    }
     window.addEventListener('pointermove', onMove)
-    return () => window.removeEventListener('pointermove', onMove)
+    window.addEventListener('pointerdown', onClick)
+    return () => {
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerdown', onClick)
+    }
   }, [])
 
   return (

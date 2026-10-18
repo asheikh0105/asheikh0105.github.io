@@ -43,7 +43,7 @@ The arm is always mounted and always live (never paused, never hidden). Only the
 
 ```
 src/ui/content.v2.js   normalises content.json into terminal items {slug,title,subtitle,date,paragraphs,images,note}; homeBubbles
-src/ui/layout.v2.js    slot maths: ellipse around the arm (centre 50%/50%, radii 40% w / 36% h); ringSlot, homeSlot, BACK_SLOT, MORE_SLOT
+src/ui/layout.v2.js    slot maths + window-fitted bubble scales: homeLayout(W,H), ringLayout(W,H), BACK_SLOT, NAV_SCALE
 src/ui/Bubbles.v2.jsx  Bubble (thumbnail circle, label OUTSIDE below), TextPanel, ImagePanel
 src/ui/bubbles.v2.css  pop-in / slide-in keyframes
 src/ui/preload.v2.js   startPreload(): staged image loading + decoding (see below)
@@ -51,12 +51,12 @@ src/ui/preload.v2.js   startPreload(): staged image loading + decoding (see belo
 
 **State machine** in `App.v2.jsx`: `home` -> `ring` -> `detail`.
 
-- **home:** 4 large bubbles in two mirrored columns. Slots (% of viewport, bubble centres): Projects (23, 28), Designs (12.4, 68), About (77, 28), Contact (87.6, 68). Designs/Contact keep the far-out horizontal offset; Projects/About sit above and nearer the centre.
-- **ring** (Projects or Designs): 8 slots on the ellipse from bottom-left over the top to bottom-right (225 deg -> -45 deg). Slot 0 = Back (to home), slot 7 = More, slots 1-6 = items (6 per page). More cycles pages and only shows when there is more than one page (Projects: 14 items = 3 pages; Designs: 6 items = 1 page, so no More).
+- **home:** three bubbles. Left: Projects and Designs (two stacked/offset boxes at the original slots (23%, 30%) and (12.4%, 68%) as picture+caption centres; picture centres are lifted by half a one-line caption so they sit exactly where they used to). Right: one tall **About Me** bubble (picture from `photo_vid_uploads/about/thumbnail.JPG` = `aamirPicture.JPG`), same width as a home bubble, spanning from the top of the Projects picture to the bottom of the Designs picture (its caption lines up with Designs' caption), centred at x = 100 - mean(Projects x, Designs x) = 82.3%. The Contact bubble was removed from home (the `contact` page data is still in `content.v2.js`; re-add to `homeBubbles` + `HOME` layout if wanted).
+- **ring** (Projects or Designs): an arc around the arm. Back (slot 0, bottom-left, 225 deg, `NAV_SCALE = 1.14` = 80% of its old size) and More (slot 7, bottom-right) sit on the base ellipse (radii 41%/38%). Items 1-3 run up the left side and 4-6 mirror them down the right (three per side; the U-shaped layout was tried and rejected). The groups lie on the `ARC` ellipse in `layout.v2.js` (centre y 53.4%, radii 40.1/43.1%, angles 179.3 -> 107.8 deg); the middle item of each group is found by bisection so both straight-line gaps are exactly equal in pixels (depends on window shape). Back goes to the previous page (home from page 1); More goes to the next page and is hidden on the last page (Projects: 14 items = 3 pages; Designs: 8 = 2 pages).
 - **detail** (a project, a design, About or Contact): text goes on the side of the screen the clicked bubble is on, images on the opposite side, flanking the arm. The ring is hidden; one Back bubble (bottom-left) returns to where you came from. Escape also goes back. The arm stays live throughout (no pause, no dimming overlay).
 - About and Contact reuse the detail layout as **placeholders** until their format is specified; Contact has placeholder text and no images.
 
-**Bubble sizes:** base `clamp(84px, 12vmin, 128px)`. Home bubbles use `HOME_SCALE = 2`; ring (project/design menu) bubbles grow by half that increase (`RING_SCALE = 1 + (HOME_SCALE-1)/2 = 1.5`). Change `HOME_SCALE` and the ring follows. Labels sit outside, below the circle. Captions use `leading-snug pb-1` because `line-clamp-2` + tight leading clipped descenders (j, g, y) in the first version.
+**Bubble sizes/shape:** rounded rectangles (`rounded-3xl`, box = 1.25 x 0.9 of the nominal size `clamp(84px, 12vmin, 128px)` x scale). Scales are fitted to the window at runtime (`fit` in `layout.v2.js`): start at `HOME_MAX = 2.8` / `RING_MAX = 2.09` (10% over the old 1.9) and shrink until no bubble+caption overlaps another, the header or the edges (assumed caption heights: 76 px home, 60 px menu; the About Me tall bubble is sized from the Projects/Designs boxes, so it shrinks with them). Menu results: 2.09 at 1920x1080 and 1920x1200, ~1.93 at 1536x864, ~1.89 at 1440x900, ~1.75 at 1366x768, ~1.57 at 1280x720 (small windows get smaller bubbles). Bigger than that needs fewer items per page: six picture bubbles + captions fill the arc. A bubble's slot is the centre of its PICTURE; the caption hangs below it (absolute), so layout maths uses picture boxes. Captions use `leading-snug pb-1` because `line-clamp-2` + tight leading clipped descenders (j, g, y) in the first version.
 
 **Image preloading** (`preload.v2.js`): after the window `load` event plus two animation frames it loads AND decodes images in tiers, each tier finishing before the next, 3 at a time: (1) home-bubble thumbnails, (2) project thumbnails in menu order, (3) design thumbnails, (4) all remaining project/design photos and the About photos. Image objects are kept in a module array so the cache is held. Reason: the first version fetched menu images only when a menu opened (only Claw'd's photo, already on the home page, appeared instantly).
 
@@ -112,12 +112,13 @@ Shared outline: half-height `h(t) = r0 + (r1-r0)·smoothstep(t) + bulge·sin²(�
 - `silver` `#e4e9ef` metalness 0.75 roughness 0.3 (satin aluminum; metalness 1 went black/mirror-bright, avoid)
 - `linkMat` `#62748f` 0.5 / 0.42; `baseMat` `#3a465c` 0.45 / 0.5; `actuatorDark` `#252e3f`; `boltMat` `#9aa5b4`
 - White canvas background. `hemisphereLight(#fff, #cfd6e0, 0.7)`, directional light `[4,7,6]` intensity 1.4 with shadows, plus a procedural `<Environment>` of six `Lightformer target` panels (soft dome above/sides/front/back/below; no HDR download).
-- Canvas: `dpr [1,2]`, antialias, camera `position [0, 0.4, 12.5]`, `fov 34`. Never oversize the canvas to fake resolution.
+- Canvas: `dpr [1,2]`, antialias, camera `position [0, 0.4, 12.5 / ARM_SCALE]` with `ARM_SCALE = 0.85` (arm drawn at 85% size by pulling the camera back), `fov 34`. Never oversize the canvas to fake resolution.
 
 ### Placement and cursor control
 
 - `placeBase(height)`: the base's lowest screen pixel (front edge of plinth, radius 1.7) sits one title-margin above the page bottom (48 px at >=768 px wide, else 24 px, matching `md:top-12` / `top-6`).
-- Cursor: window `pointermove` -> NDC -> ray -> intersect the vertical plane `z = BASE.z + 1.0` (`CURSOR_PLANE_Z`) -> target; `y` clamped to >= `MIN_TARGET_Y = 0.4`. **No idle animation**: before the first mouse move, and whenever the cursor stops, the arm holds (rest target `(3.2, 1.6, 1)`). There is no on-screen target marker.
+- Cursor: window `pointermove` -> NDC -> ray -> intersect the vertical plane `z = BASE.z + 1.0` (`CURSOR_PLANE_Z`) -> cursor point, pulled back toward the shoulder by `CURSOR_OFFSET = 1.5` (min reach `MIN_REACH = 1.5`) -> target; `y` clamped to >= `MIN_TARGET_Y = 0.4`. **No idle animation**: before the first mouse move, and whenever the cursor stops, the arm holds (rest target `(3.2, 1.6, 1)`). There is no on-screen target marker.
+- Click twirl: every `pointerdown` adds one 2*pi turn of the gripper about the rod axis, chased with damping `TWIRL_RATE = 9`, then reset to 0.
 - Joint angles ease with damping (q's 7, ext 6, yaw 6, yaw taking the short way round); each step is shortened (factors 1, .5, .25, .1) if the intermediate pose would collide.
 
 ### Inverse kinematics and collisions (`kinematics.v2.js`)
@@ -129,21 +130,38 @@ Shared outline: half-height `h(t) = r0 + (r1-r0)·smoothstep(t) + bulge·sin²(�
 
 ## Status and handoff
 
-**Done and approved by the user:** the arm (kinematics, collisions, looks), the bubble navigation (home/ring/detail), larger bubbles with outside captions, and image preloading. Commits (newest first): the bubble-UI save point (tag `ui-bubbles-baseline`, `git log -1 ui-bubbles-baseline`), `65f3808` (v2 arm + CLAUDE.md, tag `arm-v2-baseline`), `2d5c4c6` (v1 scaffold). Everything described in this file is committed. Nothing has been pushed to GitHub (`origin` is `asheikh0105/asheikh0105.github.io`), and the site is local-only.
+**State (2026-10-18):** local-only (nothing pushed; `origin` = `asheikh0105/asheikh0105.github.io`). The user has approved the arm, bubble navigation and most of the items below, judged by eye (Claude cannot open a browser; layout maths were checked numerically in Node). Baseline tags: `arm-v2-baseline`, `ui-bubbles-baseline`; everything after is in the "Content, media and UI pass" commit (`git log`).
 
-**Next session (planned by the user):** fill in the real content, and "de-AI" the UI (make it feel less generic / auto-generated: copy, type, spacing, bubble styling, the placeholder-ish panels).
+### Done since the bubble-UI baseline (newest topics first)
+- **Photos/video as separate panels** on detail pages (see that section): small video panel under a full-size photo carousel.
+- **About Me**: tall bubble on the home right (picture `aamirPicture` -> `photo_vid_uploads/about/`), Projects/Designs untouched; Contact bubble removed from home; picture-centred bubble anchoring (caption absolute below).
+- **Menu ring**: back to an arc, three bubbles per side, exactly equal gaps in pixels, sizes fitted to the window (`layout.v2.js`), Back/More at 80% of old size; home bubbles +25%. (A U-shaped layout was tried and rejected by the user.)
+- **Lightbox** for carousel photos (arrows persistent, no autoplay).
+- **Cursor**: tip stops `CURSOR_OFFSET = 1.5` units short of the cursor along the shoulder->cursor line (no collision logic); click = snappy 360 gripper twirl (`TWIRL_RATE`).
+- **Arm** drawn at 85% (`ARM_SCALE` pulls the camera back).
+- **Designs**: +2 new designs (Linear Actuator Steering Mechanism first, Electronics Mounting Rack second), 8 total = 2 pages; thumbnail zoom tweaks (`DESIGN_TWEAKS`); folders in `photo_vid_uploads/`.
+- **Projects**: Self-Steering Tricycle added to page 1 (Bar Balancing Car moved to page 2); home Projects bubble uses the tricycle thumbnail; Linear Motor carousel starts with its `thumbnail`.
+- **Media pipeline** (`scripts/build-media.mjs`): originals in `photo_vid_uploads/<slug>/` -> web-sized files in `public/media/` + `src/ui/media.v2.json`.
+- **Carousel** (see that section): replaces vertical scrolling; auto-advance 3 s, opaque arrows, seamless wrap.
+- **Menu navigation fixes**: Back goes to the previous page (home from page 1), More only on non-last pages.
+- **Placeholder cleanup**: internal harvest notes and filename-derived dates are no longer shown; empty projects hidden; no "No photos" text.
 
-### Content still to do
-
-- **About and Contact** have no final format. Contact is placeholder text. The old contact email in `content.json` (`aasheikh@bu.edu`) may be outdated; get the current one.
-- 7 of 14 projects have **no photos** (they show initials in their bubble, and "No photos for this one yet." in the image panel). Several were video-only on the old site (e.g. the LQR pendulum's `ec402projectVideo.mp4`), so videos were never harvested. Decide how to show video.
-- Some projects have no description text; designs only have one-line descriptions. The old designs intro said "Click on each to view details and download STL files!", but there are **no STL files or download links** in `content.json`.
-- Project/design **order** in the menu is just `content.json` order; Projects spans 3 pages. Pick which projects deserve page 1.
-- Image sizes: the bubbles show small circles but load full-size originals (largest is a 3 MB PNG; 48 images, ~17 MB). Generate small thumbnails if loading is still slow, especially in a production build.
+### OPEN LOOPS (next session)
+1. **Videos on GitHub Pages must work** (see OPEN ISSUE below). `public/media/**/*.mp4` (~114 MB) is gitignored and NOT in git; the photos in `public/media` (~22 MB) are committed. Decide: commit videos / re-encode smaller / YouTube-Vimeo embeds / external storage. The originals (`photo_vid_uploads/`, GBs) are also gitignored, so a fresh clone cannot rebuild media: keep a backup.
+2. **Contact**: filler text only, and the bubble is not on the home page. Need real details (the old email `aasheikh@bu.edu` may be outdated) and a place for the bubble.
+3. **About Me** page text is still the old-site bio; the old profile photo `old_site_data/images/about/1.jpg` was NOT deleted (the v1 Spline page still uses it) but v2 no longer uses it. Delete if the user confirms v1 may lose it.
+4. **Missing content**: descriptions for several projects (tricycle, Banana Finder, Linear Motor, ...) and designs beyond one line; E-Bike Conversion has nothing (hidden); Multi-Robot Navigator and Blue-Line Following Robot have no media; the two new designs have no text; no STL/download links exist.
+5. **Not visually verified**: the arc/home layouts (overlap-checked in Node only; 16:10 and small laptop windows get smaller bubbles: ~1.75 at 1366x768, ~1.57 at 1280x720), the small video panel and the moved Back bubble, the lightbox, the cursor offset/twirl feel, header collisions on narrow windows.
+6. **"De-AI" the UI** (copy, type, spacing, bubble styling) planned by the user.
+7. **Going public**: `npm run build` only builds `index.html`; promote/add `index.v2.html`, fix its tab title ("Aamir Sheikh (v2)"), and do not ship the v1 page (it has a placeholder Contact line).
+8. Minor: Six "T" Puzzle and 9V Battery Holder have no `thumbnail.*` file (first photo used); very wide or short windows are untested.
 
 ### Struggles and gotchas (so they are not rediscovered)
 
-- **Never visually verified by Claude.** The agent could not open a browser during this work; the user judged the look and fed back. The kinematics/collision/geometry builders were checked numerically in Node. Not yet checked at all: preloader timing, and whether the large Projects/About bubbles collide with the header at narrow window widths.
+- **Never visually verified by Claude.** The agent could not open a browser during this work; the user judged the look and fed back. The kinematics/collision/geometry builders and the bubble layouts were checked numerically in Node. Not yet checked at all: preloader timing, and header collisions at narrow widths.
+- **Bubble anchor bug (fixed):** bubbles used to be centred on picture+caption, so top bubbles could clip off the top of the window while the Node overlap maths assumed picture centres. Now the slot is the picture centre and the caption is absolutely positioned below.
+- **fixed-position child inside the flank panels** is trapped by their transform animation: portal overlays to `document.body` (lightbox).
+- **ffmpeg cannot decode iPhone HEIC**: `scripts/heic_to_jpg.py` (pillow-heif) is used; the `PYTHON` env var selects the interpreter (the shell `python` may differ from the Python 3.12 that has pillow-heif).
 - **IK search bug (fixed):** a linear scan with a floating-point step skipped `s = 0`, returned `null`, and froze the arm; the first idle animation also snapped the arm to the corner. Idle animation was removed. Keep `solveSafe` as bisection and keep the IK grids fixed.
 - **Branch flips in IK** caused joint snapping until candidates were ordered by continuity with the previous pose (`hint`).
 - **Link 2 seams:** stacking separate extrusions left visible internal lines; the fix was one lofted solid minus a slot box via CSG. A first `npm install three-bvh-csg` failed on a peer conflict: install `three-bvh-csg@0.0.17` with `three-mesh-bvh@0.8.3` (what drei expects), and keep `resolve.dedupe: ['three']` in `vite.config.js` to avoid "Multiple instances of Three.js".
@@ -155,11 +173,37 @@ Shared outline: half-height `h(t) = r0 + (r1-r0)·smoothstep(t) + bulge·sin²(�
 
 ### Known design notes / possible follow-ups
 
-- Link 1 is still slab + prongs from separate extrusions and may show a faint seam; it can be rebuilt with the `link2.v2.js` approach.
-- Overhead cursor crossing over the base makes the turret spin ~180 degrees (correct but abrupt).
+- Link 1 is still slab + prongs from separate extrusions and may show a faint seam (known from the mesh; the user cannot see it in the browser, so low priority); it can be rebuilt with the `link2.v2.js` approach.
+- Overhead cursor crossing over the base makes the turret spin ~180 degrees (correct but abrupt; the user has not encountered it).
 - The thickness steps on link 3 and the flat slot walls on link 2 are sharp-edged.
 - The ring-gear teeth are decorative (no motor or pinion).
 - The cursor can't aim below the arm's floor; the arm then points at floor level.
 - The bubble ring slots are fixed (empty slots stay empty on a short last page; items fill from the left).
 - Side panels are about 28vw wide and 55vh tall and can overlap the arm when it reaches sideways (they are translucent).
 - To go public: add v2 as a second build input (or promote it to `index.html`), then deploy. `npm run build` currently builds only `index.html`.
+
+## Photos and videos (media pipeline)
+
+Drop originals in `photo_vid_uploads/<project-slug>/` (gitignored: GBs). `thumbnail.*` = bubble image + first carousel slide; other photos go in the carousel (`old-N` first, then the rest); videos are shown above the carousel (video-only if the thumbnail is the only photo). Run `node scripts/build-media.mjs` (set `PYTHON=` to a Python with `pillow-heif` for iPhone HEIC): it writes web-sized files to `public/media/<slug>/` (photos 1600 px, thumbs 800 px, videos 720p H.264) and `src/ui/media.v2.json`, which `content.v2.js` reads for projects. Designs and About still use `old_site_data/images`.
+
+### OPEN ISSUE: videos on GitHub Pages
+The videos MUST be viewable on the live site. `public/media/` is ~133 MB (tricycle 41 MB, pendulum 34 MB, obstacle 26 MB). GitHub limits: 100 MB per file (hard), repo ~1 GB recommended, Pages site ~1 GB. They fit, but are heavy to commit/serve. Options: (a) commit them as-is, (b) re-encode smaller (e.g. 540p / higher CRF), (c) host on YouTube/Vimeo and embed, (d) external storage/CDN (e.g. Cloudflare R2). Decide before going public. Also `npm run build` does not yet include index.v2.html.
+
+## Live-site content rules (placeholder cleanup)
+- No placeholder or scrape text may be visible. `content.v2.js` no longer passes `media_note` (internal harvest notes like "no retrievable photos") or `date` (filename-derived strings) to the UI.
+- **Contact** has FILLER text ("Contact details coming soon...") by request; replace it with real details before going live.
+- A project with no summary, text, photos or video is filtered out (currently **E-Bike Conversion**). With no media at all, the image panel is not rendered (no "No photos" message).
+- Still to change before going live: `index.v2.html` title says "Aamir Sheikh (v2)"; v1 `src/App.jsx` has a placeholder line (v1 is never edited, so just don't ship it).
+
+## Designs
+8 designs (2 menu pages). `content.v2.js`: `newDesigns` (Linear Actuator Steering Mechanism, Electronics Mounting Rack; no content yet) are first in `DESIGN_ORDER`, steering mechanism first, so its photo becomes the Designs home bubble once uploaded (until then the first design with a photo is used). `DESIGN_TWEAKS` holds per-design thumbnail tweaks: Wheel and Tire and Electronics Mounting Rack have `thumbZoom: 0.95`, Helmet Holder and Linear Actuator Steering Mechanism `thumbZoom: 0.975` (bubble only, incl. the home Designs bubble: whole picture at 95% on white instead of cropped; the design page image is never scaled). Every design has a folder in `photo_vid_uploads/<slug>/` (old photos copied in as `old-N`); designs go through the same `build-media.mjs` pipeline as projects.
+- `build-media.mjs` wipes and regenerates a folder's photo outputs each run (videos are kept), so deleted/renamed originals never leave stale files. `THUMB_NOT_IN_CAROUSEL` in the script lists folders whose `thumbnail.*` is the bubble image only (currently `electronics-mounting-rack`). A folder with no `thumbnail.*` uses its first photo (`six-t-puzzle`, `nine-volt-battery-holder` currently).
+
+## Lightbox
+Clicking a carousel photo opens a near-fullscreen view (`Lightbox` in `Bubbles.v2.jsx`, portaled to `document.body` because the flank panels' transform animation would trap a fixed child). Persistent opaque arrows (wrap-around, plus Left/Right keys), no auto-advance (the panel carousel is paused while it is open), close via X, backdrop click or Esc (capture-phase listener so Esc does not also trigger the page's Back). `RING_SCALE = 1.9` in `Bubbles.v2.jsx` is now only the fallback size (detail-page Back bubble).
+
+## Detail pages: photos and video are separate panels
+With a video AND more than a thumbnail's worth of photos (`hasSmallVideo`): the photo carousel keeps the full-size panel (so pictures get their own scale) and a small video panel (16vw, native controls/fullscreen) sits centred under it (top = 66% + 14 px). With a video and only a thumbnail, the video fills the panel. If the small video would be in the left column, the detail Back bubble moves to the bottom-right corner (`MORE_SLOT`) so it does not sit on the video.
+
+## Carousel
+`Carousel` (in `Bubbles.v2.jsx`): strip `[last, ...images, first]` translated by `pos x 100%`; 500 ms slide; at a clone the strip snaps (no transition) to the real slide on `transitionend`. Auto-advance every 3 s via a timeout keyed on `pos` (so a click restarts it); paused while the lightbox is open. Arrows are opaque dark circles. Clicking a photo opens the lightbox.

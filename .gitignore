@@ -22,3 +22,9 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# raw photo/video originals (GBs); the site uses the processed copies in public/media
+photo_vid_uploads/
+
+# processed videos: undecided how to host them for GitHub Pages (see CLAUDE.md OPEN LOOPS)
+public/media/**/*.mp4
