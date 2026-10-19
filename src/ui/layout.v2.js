@@ -91,19 +91,22 @@ export function homeLayout(W, H) {
 // The six picture bubbles are as large as will fit, up to RING_MAX.
 export const RING_SLOTS = 8
 export const RING_ITEMS_PER_PAGE = RING_SLOTS - 2
-const ARC = { rx: 40.1, ry: 43.1, cy: 53.4, from: 179.3, to: 107.8 } // ellipse radii / centre (% of window), group start / end angle (deg)
-export const RING_MAX = 2.09 // 10% over the old 1.9
+const ARCS = [
+  { rx: 40.1, ry: 42, cy: 53.4, from: 179.3, to: 104 }, // taller reach: larger bubbles on big windows
+  { rx: 40.1, ry: 43.1, cy: 53.4, from: 179.3, to: 107.8 }, // original: better on small windows
+] // ellipse radii / centre (% of window), group start / end angle (deg)
+export const RING_MAX = 2.15 // 3% over 2.09 (which was 10% over the old 1.9)
 const RING_LABEL_H = 60
 
-const arcPoint = (angleDeg, W, H) => {
+const arcPoint = (ARC, angleDeg, W, H) => {
   const a = (angleDeg * Math.PI) / 180
   return { x: 50 + ARC.rx * Math.cos(a), y: ARC.cy - ARC.ry * Math.sin(a), px: (W * ARC.rx * Math.cos(a)) / 100, py: (H * ARC.ry * Math.sin(a)) / 100 }
 }
 
-function leftGroup(W, H) {
+function leftGroup(ARC, W, H) {
   const dist = (a, b) => {
-    const p = arcPoint(a, W, H)
-    const q = arcPoint(b, W, H)
+    const p = arcPoint(ARC, a, W, H)
+    const q = arcPoint(ARC, b, W, H)
     return Math.hypot(p.px - q.px, p.py - q.py)
   }
   let lo = ARC.to
@@ -113,11 +116,11 @@ function leftGroup(W, H) {
     if (dist(ARC.from, mid) < dist(mid, ARC.to)) hi = mid
     else lo = mid
   }
-  return [ARC.from, (lo + hi) / 2, ARC.to].map((angle) => arcPoint(angle, W, H))
+  return [ARC.from, (lo + hi) / 2, ARC.to].map((angle) => arcPoint(ARC, angle, W, H))
 }
 
-export function ringLayout(W, H) {
-  const left = leftGroup(W, H)
+function ringWith(ARC, W, H) {
+  const left = leftGroup(ARC, W, H)
   const items = [...left, ...[...left].reverse().map((p) => ({ x: 100 - p.x, y: p.y }))] // items 1..6
   const slots = [BACK_SLOT, ...items, MORE_SLOT]
   const nav = [BACK_SLOT, MORE_SLOT].map((slot) => boxOf(slot, NAV_SCALE, W, H, RING_LABEL_H))
@@ -133,4 +136,9 @@ export function ringLayout(W, H) {
     return !boxes.slice(0, 3).some((b) => hit(b, head, 0))
   })
   return { scale, slots } // slots[0] = Back, 1-6 = items, 7 = More
+}
+
+// Whichever arc lets the bubbles be larger for this window.
+export function ringLayout(W, H) {
+  return ARCS.map((arc) => ringWith(arc, W, H)).reduce((best, r) => (r.scale > best.scale ? r : best))
 }

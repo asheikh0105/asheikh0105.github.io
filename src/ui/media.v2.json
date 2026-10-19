@@ -6,7 +6,8 @@
       "/media/about/p1.png",
       "/media/about/p2.png"
     ],
-    "videos": []
+    "videos": [],
+    "reports": []
   },
   "analysis-2nd-order-system-linear-potentiometer": {
     "thumb": "/media/analysis-2nd-order-system-linear-potentiometer/t.jpg",
@@ -16,7 +17,8 @@
       "/media/analysis-2nd-order-system-linear-potentiometer/p2.png",
       "/media/analysis-2nd-order-system-linear-potentiometer/p3.png"
     ],
-    "videos": []
+    "videos": [],
+    "reports": []
   },
   "banana-finder": {
     "thumb": "/media/banana-finder/t.jpg",
@@ -25,7 +27,8 @@
     ],
     "videos": [
       "/media/banana-finder/v0.mp4"
-    ]
+    ],
+    "reports": []
   },
   "bar-balancing-car": {
     "thumb": "/media/bar-balancing-car/t.jpg",
@@ -37,7 +40,18 @@
     ],
     "videos": [
       "/media/bar-balancing-car/v0.mp4"
-    ]
+    ],
+    "reports": []
+  },
+  "blue-line-following-robot": {
+    "thumb": "/media/blue-line-following-robot/t.jpg",
+    "images": [
+      "/media/blue-line-following-robot/p0.jpg"
+    ],
+    "videos": [
+      "/media/blue-line-following-robot/v0.mp4"
+    ],
+    "reports": []
   },
   "clawd-wirelessly-controlled-3-5-dof-mechanism": {
     "thumb": "/media/clawd-wirelessly-controlled-3-5-dof-mechanism/t.jpg",
@@ -67,7 +81,8 @@
     ],
     "videos": [
       "/media/clawd-wirelessly-controlled-3-5-dof-mechanism/v0.mp4"
-    ]
+    ],
+    "reports": []
   },
   "coil-winder": {
     "thumb": "/media/coil-winder/t.jpg",
@@ -78,28 +93,32 @@
       "/media/coil-winder/p3.jpg",
       "/media/coil-winder/p4.jpg"
     ],
-    "videos": []
+    "videos": [],
+    "reports": []
   },
   "contoured-handle": {
     "thumb": "/media/contoured-handle/t.jpg",
     "images": [
       "/media/contoured-handle/p0.png"
     ],
-    "videos": []
+    "videos": [],
+    "reports": []
   },
   "electronics-mounting-rack": {
     "thumb": "/media/electronics-mounting-rack/t.jpg",
     "images": [
       "/media/electronics-mounting-rack/p0.png"
     ],
-    "videos": []
+    "videos": [],
+    "reports": []
   },
   "eye-tracker": {
     "thumb": "/media/eye-tracker/t.jpg",
     "images": [
       "/media/eye-tracker/p0.png"
     ],
-    "videos": []
+    "videos": [],
+    "reports": []
   },
   "gait-tracker": {
     "thumb": "/media/gait-tracker/t.jpg",
@@ -108,21 +127,24 @@
     ],
     "videos": [
       "/media/gait-tracker/v0.mp4"
-    ]
+    ],
+    "reports": []
   },
   "helmet-holder": {
     "thumb": "/media/helmet-holder/t.jpg",
     "images": [
       "/media/helmet-holder/p0.png"
     ],
-    "videos": []
+    "videos": [],
+    "reports": []
   },
   "linear-actuator-steering-mechanism": {
     "thumb": "/media/linear-actuator-steering-mechanism/t.jpg",
     "images": [
       "/media/linear-actuator-steering-mechanism/p0.png"
     ],
-    "videos": []
+    "videos": [],
+    "reports": []
   },
   "linear-motor-control-soft-robotic-actuators": {
     "thumb": "/media/linear-motor-control-soft-robotic-actuators/t.jpg",
@@ -133,23 +155,37 @@
       "/media/linear-motor-control-soft-robotic-actuators/p3.jpg",
       "/media/linear-motor-control-soft-robotic-actuators/p4.jpg"
     ],
-    "videos": []
+    "videos": [],
+    "reports": []
   },
   "lqr-inverted-pendulum-balancer": {
     "thumb": "/media/lqr-inverted-pendulum-balancer/t.jpg",
     "images": [
-      "/media/lqr-inverted-pendulum-balancer/p0.png"
+      "/media/lqr-inverted-pendulum-balancer/p0.png",
+      "/media/lqr-inverted-pendulum-balancer/p1.jpg"
     ],
     "videos": [
       "/media/lqr-inverted-pendulum-balancer/v0.mp4"
+    ],
+    "reports": [
+      "/media/lqr-inverted-pendulum-balancer/r0.pdf"
     ]
+  },
+  "multi-robot-navigator": {
+    "thumb": "/media/multi-robot-navigator/t.jpg",
+    "images": [
+      "/media/multi-robot-navigator/p0.png"
+    ],
+    "videos": [],
+    "reports": []
   },
   "nine-volt-battery-holder": {
     "thumb": "/media/nine-volt-battery-holder/t.jpg",
     "images": [
       "/media/nine-volt-battery-holder/p0.png"
     ],
-    "videos": []
+    "videos": [],
+    "reports": []
   },
   "obstacle-course-navigator": {
     "thumb": "/media/obstacle-course-navigator/t.jpg",
@@ -160,7 +196,8 @@
     ],
     "videos": [
       "/media/obstacle-course-navigator/v0.mp4"
-    ]
+    ],
+    "reports": []
   },
   "room-temperature-monitor": {
     "thumb": "/media/room-temperature-monitor/t.jpg",
@@ -169,7 +206,8 @@
       "/media/room-temperature-monitor/p1.png",
       "/media/room-temperature-monitor/p2.png"
     ],
-    "videos": []
+    "videos": [],
+    "reports": []
   },
   "self-steering-tricycle": {
     "thumb": "/media/self-steering-tricycle/t.jpg",
@@ -179,27 +217,31 @@
     ],
     "videos": [
       "/media/self-steering-tricycle/v0.mp4"
-    ]
+    ],
+    "reports": []
   },
   "six-t-puzzle": {
     "thumb": "/media/six-t-puzzle/t.jpg",
     "images": [
       "/media/six-t-puzzle/p0.png"
     ],
-    "videos": []
+    "videos": [],
+    "reports": []
   },
   "syringe-case": {
     "thumb": "/media/syringe-case/t.jpg",
     "images": [
       "/media/syringe-case/p0.png"
     ],
-    "videos": []
+    "videos": [],
+    "reports": []
   },
   "wheel-and-tire-assembly": {
     "thumb": "/media/wheel-and-tire-assembly/t.jpg",
     "images": [
       "/media/wheel-and-tire-assembly/p0.png"
     ],
-    "videos": []
+    "videos": [],
+    "reports": []
   }
 }

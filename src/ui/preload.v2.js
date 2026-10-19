@@ -53,6 +53,7 @@ export function startPreload() {
     [
       ...rest(sections.projects),
       ...rest(sections.designs),
+      terminals.about.portrait,
       ...terminals.about.images,
     ],
   ]

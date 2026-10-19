@@ -129,6 +129,7 @@ function App() {
               label={item.title}
               thumb={item.thumb ?? item.images[0]}
               thumbZoom={item.thumbZoom}
+              thumbScale={item.thumbScale}
               onClick={() => openDetail(item, slot, view)}
             />
           )

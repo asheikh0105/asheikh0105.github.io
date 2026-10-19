@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { hasPhotoCarousel } from './content.v2.js'
+import { hasPhotoCarousel, hasPortrait } from './content.v2.js'
 import { RECT_H, RECT_W } from './layout.v2.js'
 import './bubbles.v2.css'
 
@@ -60,7 +60,7 @@ function Icon({ name }) {
   )
 }
 
-export function Bubble({ slot, label, thumb, icon, tone = 'photo', onClick, index = 0, large = false, scale = RING_SCALE, thumbZoom, boxPx, dark = false }) {
+export function Bubble({ slot, label, thumb, icon, tone = 'photo', onClick, index = 0, large = false, scale = RING_SCALE, thumbZoom, thumbScale, boxPx, dark = false }) {
   const size = sizeFor(scale)
   // boxPx = explicit picture size in px (the tall About Me bubble)
   const width = boxPx ? `${boxPx.w}px` : `calc(${size} * ${RECT_W})`
@@ -68,7 +68,7 @@ export function Bubble({ slot, label, thumb, icon, tone = 'photo', onClick, inde
   const face =
     tone === 'action'
       ? 'bg-slate-900 text-white'
-      : thumbZoom && thumb
+      : (thumbZoom || thumbScale) && thumb
         ? 'bg-white text-slate-700'
         : 'bg-gradient-to-br from-slate-200 to-slate-400 text-slate-700'
 
@@ -89,7 +89,7 @@ export function Bubble({ slot, label, thumb, icon, tone = 'photo', onClick, inde
               src={thumb}
               alt=""
               className={`h-full w-full ${thumbZoom ? 'object-contain' : 'object-cover'}`}
-              style={thumbZoom ? { transform: `scale(${thumbZoom})` } : undefined}
+              style={thumbZoom || thumbScale ? { transform: `scale(${thumbZoom ?? thumbScale})` } : undefined}
             />
           ) : icon ? (
             <Icon name={icon} />
@@ -117,21 +117,167 @@ export function Bubble({ slot, label, thumb, icon, tone = 'photo', onClick, inde
 const PANEL =
   'pointer-events-auto fixed top-[11%] bottom-[34%] w-[28vw] min-w-[260px] overflow-y-auto rounded-3xl border border-slate-200 bg-white/80 p-6 shadow-xl shadow-slate-400/30 backdrop-blur-md'
 
+// "Get In Touch" row on the About page: GitHub, LinkedIn, and an email button whose
+// pop-up lists both addresses. The pop-up is portaled (the text panel clips overflow).
+const LINKS = {
+  github: 'https://github.com/asheikh0105',
+  linkedin: 'https://www.linkedin.com/in/aash3ikh/',
+}
+const EMAILS = [
+  { label: 'Personal', address: 'asheikh0105@gmail.com' },
+  { label: 'University', address: 'aasheikh@bu.edu' },
+]
+const ICON_BTN =
+  'flex h-11 w-11 items-center justify-center rounded-full bg-slate-900 text-white shadow-md transition hover:scale-105 hover:bg-slate-700'
+
+function EmailButton() {
+  const [anchor, setAnchor] = useState(null) // button rect while the pop-up is open
+
+  useEffect(() => {
+    if (!anchor) return undefined
+    const onKey = (e) => {
+      if (e.key === 'Escape') {
+        e.stopImmediatePropagation() // close the pop-up, not the page
+        setAnchor(null)
+      }
+    }
+    window.addEventListener('keydown', onKey, true)
+    return () => window.removeEventListener('keydown', onKey, true)
+  }, [anchor])
+
+  return (
+    <>
+      <button
+        type="button"
+        aria-label="Email"
+        aria-expanded={Boolean(anchor)}
+        onClick={(e) => setAnchor(anchor ? null : e.currentTarget.getBoundingClientRect())}
+        className={ICON_BTN}
+      >
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="3" y="5" width="18" height="14" rx="2" />
+          <path d="M3 7l9 6 9-6" />
+        </svg>
+      </button>
+      {anchor &&
+        createPortal(
+          <div className="pointer-events-auto fixed inset-0 z-50" onClick={() => setAnchor(null)}>
+            <div
+              className="absolute w-max -translate-x-1/2 -translate-y-full rounded-2xl border border-slate-200 bg-white p-4 text-sm shadow-xl shadow-slate-400/40"
+              style={{ left: anchor.left + anchor.width / 2, top: anchor.top - 10 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {EMAILS.map((m) => (
+                <p key={m.address} className="py-1">
+                  <span className="block text-xs text-slate-500">{m.label}</span>
+                  <a href={`mailto:${m.address}`} className="font-medium text-slate-900 underline-offset-2 hover:underline">
+                    {m.address}
+                  </a>
+                </p>
+              ))}
+            </div>
+          </div>,
+          document.body,
+        )}
+    </>
+  )
+}
+
+function GetInTouch() {
+  return (
+    <div className="mt-4 shrink-0 border-t border-slate-200 pt-4">
+      <h3 className="text-base font-semibold text-slate-900">Get In Touch</h3>
+      <div className="mt-3 flex items-center gap-3">
+        <a href={LINKS.github} target="_blank" rel="noopener noreferrer" aria-label="GitHub" title="GitHub" className={ICON_BTN}>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+            <path d={GITHUB_PATH} />
+          </svg>
+        </a>
+        <a href={LINKS.linkedin} target="_blank" rel="noopener noreferrer" aria-label="LinkedIn" title="LinkedIn" className={ICON_BTN}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
+          </svg>
+        </a>
+        <EmailButton />
+      </div>
+    </div>
+  )
+}
+
+// "**Heading**" at the start of a paragraph renders bold (the old-site text uses it).
+function Para({ text }) {
+  return (
+    <p className="whitespace-pre-line">
+      {text.split(/\*\*(.+?)\*\*/).map((part, i) =>
+        i % 2 ? (
+          <strong key={i} className="font-semibold text-slate-900">
+            {part}
+          </strong>
+        ) : (
+          part
+        ),
+      )}
+    </p>
+  )
+}
+
+const GITHUB_PATH =
+  'M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12'
+
+// A card under the text that opens a PDF report or a GitHub repo in a new tab.
+function LinkCard({ link }) {
+  return (
+    <a
+      href={link.url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="mt-4 flex shrink-0 items-center gap-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm transition hover:scale-[1.02] hover:shadow-md"
+    >
+      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-slate-900 text-white">
+        {link.kind === 'github' ? (
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+            <path d={GITHUB_PATH} />
+          </svg>
+        ) : (
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
+            <path d="M14 3v5h5M9 13h6M9 17h6" />
+          </svg>
+        )}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-sm font-semibold text-slate-900">{link.title}</span>
+        <span className="block truncate text-xs text-slate-500">{link.sub}</span>
+      </span>
+    </a>
+  )
+}
+
 export function TextPanel({ item, side }) {
   const place = side === 'left' ? 'left-[2.5vw] flank-in-left' : 'right-[2.5vw] flank-in-right'
-  return (
-    <aside className={`${PANEL} ${place}`}>
+  const body = (
+    <>
       <h2 className="text-2xl font-semibold text-slate-900">{item.title}</h2>
       {item.subtitle && <p className="mt-2 text-base text-slate-600">{item.subtitle}</p>}
       {item.date && <p className="mt-1 text-sm text-slate-500">{item.date}</p>}
       <div className="mt-5 space-y-4 text-sm leading-relaxed text-slate-700">
         {item.paragraphs.map((para, i) => (
-          <p key={i} className="whitespace-pre-line">
-            {para}
-          </p>
+          <Para key={i} text={para} />
         ))}
       </div>
       {item.note && <p className="mt-5 text-xs italic text-slate-500">{item.note}</p>}
+    </>
+  )
+  const links = item.links ?? []
+  if (!item.touch && links.length === 0) return <aside className={`${PANEL} ${place}`}>{body}</aside>
+  // The Get In Touch row / link cards stay pinned at the bottom while the text scrolls above them.
+  return (
+    <aside className={`${PANEL} ${place} flex flex-col !overflow-hidden`}>
+      <div className="min-h-0 flex-1 overflow-y-auto">{body}</div>
+      {item.touch && <GetInTouch />}
+      {links.map((l) => (
+        <LinkCard key={l.url} link={l} />
+      ))}
     </aside>
   )
 }
@@ -274,15 +420,28 @@ function Carousel({ images }) {
 // worth of photos, the photo carousel keeps the full panel (so pictures are shown at
 // their own scale) and a small video panel sits under it; the video is meant to be
 // watched fullscreen. With a video and only a thumbnail, the video is the panel.
+// A single still (About Me portrait): its own panel, not part of the carousel.
+function PortraitPanel({ src, className }) {
+  const [zoomed, setZoomed] = useState(false)
+  return (
+    <aside className={`${PANEL} ${className} !overflow-hidden !p-3`}>
+      <img src={src} alt="" className="h-full w-full cursor-zoom-in rounded-2xl bg-white object-contain" onClick={() => setZoomed(true)} />
+      {zoomed && <Lightbox images={[src]} start={0} onClose={() => setZoomed(false)} />}
+    </aside>
+  )
+}
+
 export function ImagePanel({ item, side }) {
   const place = side === 'left' ? 'left-[2.5vw] flank-in-left' : 'right-[2.5vw] flank-in-right'
   const videos = item.videos ?? []
   const carousel = hasPhotoCarousel(item)
-  if (!carousel && videos.length === 0) return null
+  const portrait = hasPortrait(item)
+  if (!carousel && !portrait && videos.length === 0) return null
   return (
     <>
+      {portrait && <PortraitPanel src={item.portrait} className={`${place} !bottom-[63%]`} />}
       {carousel && (
-        <aside className={`${PANEL} ${place} !overflow-hidden !p-3`}>
+        <aside className={`${PANEL} ${place} !overflow-hidden !p-3 ${portrait ? '!top-[39%]' : ''}`}>
           <Carousel key={item.slug} images={item.images} />
         </aside>
       )}

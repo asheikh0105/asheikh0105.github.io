@@ -3,12 +3,13 @@
 //   thumbnail.*   -> bubble thumbnail AND first slide of the carousel
 //   other photos  -> carousel (old-N first, then the rest, natural order)
 //   videos        -> one web mp4 each (720p, H.264)
+//   *.pdf         -> copied as r<N>.pdf (shown as a report card on the project page)
 // Exact duplicate files (e.g. "IMG_1(1).JPG") are skipped. Existing outputs
 // are reused, so re-running only processes new or changed files.
 // Usage: node scripts/build-media.mjs
 import { createHash } from 'node:crypto'
 import { spawnSync } from 'node:child_process'
-import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 
@@ -68,6 +69,7 @@ for (const slug of readdirSync(SRC).sort()) {
   const seen = new Set()
   const photos = []
   const videos = []
+  const reports = []
   let thumbFile = null
   for (const name of readdirSync(dir).sort(natural.compare)) {
     const file = path.join(dir, name)
@@ -79,6 +81,7 @@ for (const slug of readdirSync(SRC).sort()) {
       if (/^thumbnail\./i.test(name)) thumbFile = file
       else photos.push(file)
     } else if (VIDEO.has(ext)) videos.push(file)
+    else if (ext === '.pdf') reports.push(file)
   }
   // old-N first (the original site photos), then new uploads
   photos.sort((a, b) => {
@@ -88,7 +91,7 @@ for (const slug of readdirSync(SRC).sort()) {
   })
   const slides = thumbFile && !THUMB_NOT_IN_CAROUSEL.has(slug) ? [thumbFile, ...photos] : photos
   const thumbSrc = thumbFile ?? slides[0]
-  if (!slides.length && !videos.length && !thumbFile) continue
+  if (!slides.length && !videos.length && !thumbFile && !reports.length) continue
 
   console.log(slug)
   const outDir = path.join(OUT, slug)
@@ -96,7 +99,7 @@ for (const slug of readdirSync(SRC).sort()) {
   // photos are cheap to redo and their numbering shifts when files change: start clean (videos are kept)
   for (const f of readdirSync(outDir)) if (!f.endsWith('.mp4')) rmSync(path.join(outDir, f))
   const url = (f) => `/media/${slug}/${f}`
-  const entry = { thumb: null, images: [], videos: [] }
+  const entry = { thumb: null, images: [], videos: [], reports: [] }
 
   slides.forEach((src, i) => {
     const ext = path.extname(src).toLowerCase() === '.png' ? 'png' : 'jpg'
@@ -109,6 +112,12 @@ for (const slug of readdirSync(SRC).sort()) {
     const name = `v${i}.mp4`
     if (video(src, path.join(outDir, name))) entry.videos.push(url(name))
     else console.log(`  FAILED ${path.basename(src)}`)
+  })
+  // PDFs (project reports) are copied as-is
+  reports.forEach((src, i) => {
+    const name = `r${i}.pdf`
+    copyFileSync(src, path.join(outDir, name))
+    entry.reports.push(url(name))
   })
   manifest[slug] = entry
 }
