@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-Aamir Sheikh's personal engineering portfolio (Mechanical Engineering / Robotics, Boston University). It is **not public yet**: it only runs on localhost. Remote: `github.com/asheikh0105/asheikh0105.github.io`.
+Aamir Sheikh's personal engineering portfolio (Mechanical Engineering / Robotics, Boston University). **LIVE at https://asheikh0105.github.io/** (user site, no Vite `base`; deployed 2026-10-20 by `.github/workflows/deploy.yml` on every push to `main`; Settings -> Pages -> Source = GitHub Actions). Remote: `github.com/asheikh0105/asheikh0105.github.io` (public).
 
 Stack: React 19, Vite 8, Tailwind 4, ESLint. The v2 arm uses `three`, `@react-three/fiber`, `@react-three/drei`, `three-bvh-csg` and `three-mesh-bvh@0.8.3` (the version `@react-three/drei` expects; do not upgrade it without checking drei).
 
@@ -15,15 +15,15 @@ Site content (bio, projects, images) is harvested from the old Google Sites port
 ```
 npm run dev      # Vite dev server -> http://localhost:5173/
 npm run lint     # eslint .
-npm run build    # builds index.html ONLY (index.v2.html is dev-only for now)
+npm run build    # builds index.html (= v2, the live site); push to main deploys it
 ```
 
-Two entry points are served by the same dev server:
+Entry points (the dev server serves both; only `index.html` is built and shipped):
 
 | URL | Entry | Arm |
 |---|---|---|
-| `/` | `index.html` -> `src/main.jsx` -> `src/App.jsx` | **v1**: third-party Spline scene (fallback, untouched) |
-| `/index.v2.html` | `index.v2.html` -> `src/main.v2.jsx` -> `src/App.v2.jsx` | **v2**: hand-built React Three Fiber arm |
+| `/index.v1.html` | `index.v1.html` -> `src/main.jsx` -> `src/App.jsx` | **v1**: third-party Spline scene (vestigial; kept in the repo on purpose, not built, not shipped) |
+| `/` | `index.html` -> `src/main.v2.jsx` -> `src/App.v2.jsx` | **v2**: hand-built React Three Fiber arm (THE site) |
 
 **Rule: v1 files are the fallback. Never edit them. All changes go in the `*.v2.*` copies.** The only shared file edited for v2 is `vite.config.js` (`resolve.dedupe: ['three']`, so three-bvh-csg and the app share one copy of three.js).
 
@@ -131,7 +131,7 @@ Shared outline: half-height `h(t) = r0 + (r1-r0)·smoothstep(t) + bulge·sin²(�
 
 ## Status and handoff
 
-**State (2026-10-20):** local-only (nothing pushed; `origin` = `asheikh0105/asheikh0105.github.io`). The user has approved the arm, bubble navigation and most of the items below, judged by eye (Claude cannot open a browser; layout maths were checked numerically in Node). Baseline tags: `arm-v2-baseline`, `ui-bubbles-baseline`; everything after is in the "Content, media and UI pass" commit (`git log`).
+**State (2026-10-20):** LIVE on GitHub Pages and confirmed working from a second device by the user. `index.v2.html` was promoted to `index.html` (title "Aamir Sheikh"); old `index.html` is now `index.v1.html`. All 8 mp4s are committed (A1: ship as-is). The user approved the arm, bubble navigation and most of the items below, judged by eye (Claude cannot open a browser; layout maths were checked numerically in Node). Baseline tags: `arm-v2-baseline`, `ui-bubbles-baseline`.
 
 ### Done since the bubble-UI baseline (newest topics first)
 - **Project write-ups (2026-10-19/20 sessions):** written descriptions live in `src/ui/descriptions.v2.js` (see "Project write-ups" section). Done: LQR Inverted Pendulum, CLAW'D, Analysis of 2nd Order System, Coil Winder, Self-Steering Tricycle, Linear Motor Control System, Bar Balancing Car, Multi-Robot Navigator, Obstacle Course Navigator, Blue-Line Following Robot, E-Bike Conversion (thumbnail uploaded). Gait Tracker and Room Temperature Monitor keep their short old-site text (user: keep as is). The big projects use bold `**Heading**` sections plus an "Engineering skills" line; the later ones (LIMO projects, E-Bike) are deliberately 1-2 short paragraphs. Remaining: Eye Tracker and Banana Finder (not yet discussed).
@@ -156,8 +156,8 @@ Shared outline: half-height `h(t) = r0 + (r1-r0)·smoothstep(t) + bulge·sin²(�
 - **Placeholder cleanup**: internal harvest notes and filename-derived dates are no longer shown; empty projects hidden; no "No photos" text.
 
 ### OPEN LOOPS (next session)
-0. **Launch-test soon (user wants this)**: do the GitHub Pages deploy in a separate session. Plan: user site `https://asheikh0105.github.io/` (repo name makes it a user site, so no Vite `base`); make v2 the main page / second build input; GitHub Actions workflow (install, `npm run build`, publish `dist/`), Settings -> Pages -> Source = GitHub Actions; run `npm run build` + `npm run preview` locally first; resolve the video hosting question first (the mp4s are gitignored). Free-account Pages needs a public repo, so `old_site_data/` becomes public too.
-1. **Videos on GitHub Pages must work** (see OPEN ISSUE below). `public/media/**/*.mp4` (~114 MB) is gitignored and NOT in git; the photos in `public/media` (~22 MB) are committed. Decide: commit videos / re-encode smaller / YouTube-Vimeo embeds / external storage. The originals (`photo_vid_uploads/`, GBs) are also gitignored, so a fresh clone cannot rebuild media: keep a backup.
+0. ~~Launch~~ **DONE 2026-10-20** (see State). Lint, build and `vite preview` (page, mp4, favicon all 200) were run before the push. User is backing up the whole repo (incl. gitignored `photo_vid_uploads/`) to a NAS.
+1. ~~Videos on GitHub Pages~~ **DONE**: mp4s committed as-is and served. Optional later: re-encode smaller (540p) if load time matters. The originals in `photo_vid_uploads/` are gitignored; the NAS copy is the only backup.
 2. **Contact**: filler text only, and the bubble is not on the home page. Need real details (the old email `aasheikh@bu.edu` may be outdated) and a place for the bubble.
 3. **About Me** bio text is still the old-site bio (layout and Get In Touch are done); the old profile photo `old_site_data/images/about/1.jpg` was NOT deleted (the v1 Spline page still uses it) but v2 no longer uses it. Delete if the user confirms v1 may lose it.
 4. **Missing content**: **NEXT SESSION: finish the walkthrough with Eye Tracker, then Banana Finder** (the user wants to be prompted per project, super brief like Gait Tracker; for the AgileX LIMO projects the course is not mentioned). Tricycle through E-Bike are written (see above). Also: the two new designs and the other designs have only a line or nothing; no STL/download links exist. Source text for existing projects: `old_site_data/content.json` (print with `PYTHONIOENCODING=utf-8`). Condense it into the uniform format; do not invent facts.
@@ -165,7 +165,7 @@ Shared outline: half-height `h(t) = r0 + (r1-r0)·smoothstep(t) + bulge·sin²(�
 4c. **Claw'd carousel numbering was ambiguous** (user said "12 14 16 17" after an earlier list; interpreted as additive, original 22-photo numbering, 1-based). Ask the user to confirm the carousel looks right.
 5. **Not visually verified by Claude** (dance mode is user-approved): the arc/home layouts (overlap-checked in Node only; 16:10 and small laptop windows get smaller bubbles: ~1.75 at 1366x768, ~1.57 at 1280x720), the small video panel and the moved Back bubble, the lightbox, the cursor offset/twirl feel, header collisions on narrow windows.
 6. **"De-AI" the UI** (copy, type, spacing, bubble styling) planned by the user.
-7. **Going public**: `npm run build` only builds `index.html`; promote/add `index.v2.html`, fix its tab title ("Aamir Sheikh (v2)"), and do not ship the v1 page (it has a placeholder Contact line).
+7. ~~Going public~~ **DONE** (v2 is `index.html`; v1 is `index.v1.html`, unbuilt). Remaining: the build warns about a 1.3 MB JS chunk (code-split three/drei if load time matters); the repo and `old_site_data/` are public, so the old email is visible there.
 8. Minor: Six "T" Puzzle and 9V Battery Holder have no `thumbnail.*` file (first photo used); very wide or short windows are untested.
 
 ### Struggles and gotchas (so they are not rediscovered)
@@ -204,8 +204,8 @@ Shared outline: half-height `h(t) = r0 + (r1-r0)·smoothstep(t) + bulge·sin²(�
 
 Drop originals in `photo_vid_uploads/<project-slug>/` (gitignored: GBs). `thumbnail.*` = bubble image + first carousel slide; other photos go in the carousel (`old-N` first, then the rest); videos are shown above the carousel (video-only if the thumbnail is the only photo). Run `node scripts/build-media.mjs` (set `PYTHON=` to a Python with `pillow-heif` for iPhone HEIC): it writes web-sized files to `public/media/<slug>/` (photos 1600 px, thumbs 800 px, videos 720p H.264) and `src/ui/media.v2.json`, which `content.v2.js` reads for projects. Designs and About still use `old_site_data/images`.
 
-### OPEN ISSUE: videos on GitHub Pages
-The videos MUST be viewable on the live site. `public/media/` is ~133 MB (tricycle 41 MB, pendulum 34 MB, obstacle 26 MB). GitHub limits: 100 MB per file (hard), repo ~1 GB recommended, Pages site ~1 GB. They fit, but are heavy to commit/serve. Options: (a) commit them as-is, (b) re-encode smaller (e.g. 540p / higher CRF), (c) host on YouTube/Vimeo and embed, (d) external storage/CDN (e.g. Cloudflare R2). Decide before going public. Also `npm run build` does not yet include index.v2.html.
+### Videos on GitHub Pages (resolved)
+All 8 videos (~114 MB of 143 MB in `public/media/`) are committed and deployed; largest 41 MB (limit 100 MB per file). `.gitignore` no longer excludes mp4s.
 
 ## Project write-ups (`src/ui/descriptions.v2.js`)
 `descriptions[slug] = { subtitle, paragraphs[], reportTitle? }` overrides the old-site summary/description for that project (applied in `withMedia`, `content.v2.js`). `subtitle: ''` shows no line under the title. A paragraph may start with `**Heading**\n` (rendered bold by `Para` in `Bubbles.v2.jsx`). `githubRepos[slug]` = repo name under github.com/asheikh0105 (LQR-Inverted-Pendulum, Bar-Balancing-Car, Eye-Tracker, Banana-Detector, Obstacle-Course-Navigator, Data-Processing-for-2nd-Order-Oscillator, Multi-Robot-Navigator, Blue-Line-Following-Robot). User preferences so far: first person where it is his work; later projects should be SUPER brief (1-2 short paragraphs); do not name the course; leave out teammates by name (credit his role only); no measured-outcome claims unless he states them; skip AI-tool disclosures; uniform format across projects.
