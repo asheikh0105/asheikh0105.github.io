@@ -81,6 +81,12 @@ function App() {
     setView({ name: 'detail', item, side: sideOf(slot), returnTo })
   }
 
+  // In-text links ([[slug|Label]]) open another project or design; Back returns here.
+  const openLinked = (slug) => {
+    const target = [...sections.projects, ...sections.designs].find((it) => it.slug === slug)
+    if (target) setView((v) => ({ name: 'detail', item: target, side: v.side, returnTo: v }))
+  }
+
   let bubbles
   let panels = null
 
@@ -156,7 +162,7 @@ function App() {
     bubbles = <Bubble key="back" index={0} slot={backSlot} label="Back" icon="back" tone="action" onClick={() => setView(view.returnTo)} />
     panels = (
       <>
-        <TextPanel item={view.item} side={view.side} />
+        <TextPanel item={view.item} side={view.side} onNavigate={openLinked} />
         <ImagePanel item={view.item} side={imageSide} />
       </>
     )

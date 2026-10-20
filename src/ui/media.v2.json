@@ -104,6 +104,14 @@
     "videos": [],
     "reports": []
   },
+  "e-bike-conversion": {
+    "thumb": "/media/e-bike-conversion/t.jpg",
+    "images": [
+      "/media/e-bike-conversion/p0.jpg"
+    ],
+    "videos": [],
+    "reports": []
+  },
   "electronics-mounting-rack": {
     "thumb": "/media/electronics-mounting-rack/t.jpg",
     "images": [

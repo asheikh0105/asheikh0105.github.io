@@ -8,7 +8,7 @@ export const descriptions = {
     paragraphs: [
       'An original machine I designed for my research at the Morphable Biorobotics Lab to wind copper wire into air-core electromagnets quickly and with less human error. The coils needed for the research were 10 mm long and 1 mm in diameter. The coil shown in the photos, next to a wallet for scale, has four layers of windings to maximize magnetic field strength for testing.',
       '**How it works**\nTwo stepper motors do the work. One spins the winding shaft, and the other advances the wire-feed carriage by exactly one wire thickness per revolution, so each turn lies neatly beside the last with no overlaps. The wire runs through the linearly restricted carriage and then through a 3D-printed eyelet on the rotating shaft, which secures one terminal of the coil. The other terminal is made by cutting the wire from the spool when winding finishes.',
-      '**Control**\nA Teensy 4.0 programmed in the Arduino IDE runs the machine. The user sets the wire thickness (the gauge printed on the spool), the coil length, the number of layers and the winding speed. When a layer reaches the end of the coil length, the winding motor halts and the linear motor pulls the wire back on top of the previous layer, then repositions it exactly at the end of the coil before winding resumes. When the coil is done, the motors hold at rest so it cannot unwind. The user then applies adhesive and slides the coil off the shaft, using heat-shrink tubing placed on the shaft beforehand so the tubing can be pulled out through the finished coil once the adhesive dries.',
+      '**Control**\nA Teensy 4.0 programmed in the Arduino IDE runs the machine, with a Pololu Tic T825 motor controller driving each stepper. The user sets the wire thickness (the gauge printed on the spool), the coil length, the number of layers and the winding speed. When a layer reaches the end of the coil length, the winding motor halts and the linear motor pulls the wire back on top of the previous layer, then repositions it exactly at the end of the coil before winding resumes. When the coil is done, the motors hold at rest so it cannot unwind. The user then applies adhesive and slides the coil off the shaft, using heat-shrink tubing placed on the shaft beforehand so the tubing can be pulled out through the finished coil once the adhesive dries.',
       '**Design considerations**\nThe rotating shaft runs in a bearing with a clamped housing, which keeps it level and free of vibration. Wire tension stays constant because the motors are held rather than powered down when the coil is finished, and the spool is turned to tension the wire before starting. A bearing on the spool-holding shaft lets the winding motor turn the large spool easily, so tension cannot snap the wire if the spool lags.',
       'Engineering skills: prototyping and iterative design, laser cutting, 3D printing, Arduino IDE.',
     ],
@@ -44,6 +44,69 @@ export const descriptions = {
       '**Hardware**\nThe pendulum sits on a rod held by two bearings, with a magnet on the other end read by a magnetic encoder. This platform rides on a three-bearing carriage on aluminum extrusion, driven by a GT2 belt, a NEMA 17 stepper and a TMC2209 driver. A Teensy runs the control loop.',
       '**From simulation to hardware**\nOn the real rig we switched from PID to LQR, because PID needed too much iterative tuning against real-world variability. The firmware runs as tasks at different rates, with a 200 Hz control tick and the encoder and stepper serviced faster. The encoder signal goes through a median filter, continuous angle unwrapping and a mode-dependent low-pass filter on velocity. A software slew-rate limiter stops sudden velocity changes from shaking the belt and mounts.',
       "A four-state machine (idle, swing-up, stabilize, recovery) retries failed catches instead of giving up, and only the user's switch can stop it. Near equilibrium, a deadband ignores sensor jitter and a position-dependent soft wall keeps the cart from drifting into the rail ends. We also found the stepper driver was running at twice the microstepping we assumed, which taught us to calibrate against a physical measurement before trusting spec-sheet numbers.",
+    ],
+  },
+  'self-steering-tricycle': {
+    subtitle: '',
+    paragraphs: [
+      "Self-Steering Tricycle for the Blind is a summer research project in a Boston University lab, funded by a Computing Research Association award I received. A Catrike Villager recumbent tricycle is retrofitted so a visually impaired rider can travel a GPS-defined route with the bike steering itself. The rider always pedals and can always brake by hand, which is a mechanical failsafe if autonomous braking fails. I was responsible for the complete hardware integration: the steering system, every electronics mount, and the wiring of the stack to the actuator, and I contributed to the controls and the pure-pursuit path following.",
+      '**Zero-backlash steering**\nA linear actuator steers the two front wheels through the tie rod. One end of the actuator is bolted to the tie rod and the other to the frame, and both ends use rod-end (Heim) joints so the mechanism has the rotational freedom it needs without being overconstrained, which would cause binding. The mechanism is zero-backlash: the steering cannot be turned by hand to backdrive the actuator. The same design appears in the Designs section as the [[linear-actuator-steering-mechanism|Linear Actuator Steering Mechanism]].',
+      '**Designed to fail in metal, not plastic**\nEvery part of the rig is 3D printed and joined with metal fasteners, so durability became a design problem: if something is going to fail, it should be a structural failure, not the printed material giving way. The parts are mostly PETG, because our client lives in Georgia, where summer heat in the 90s would soften PLA, and because PLA is too brittle for the cyclic loading of the steering being actuated.',
+      '**Electronics stack**\nI designed every mount for the electronics: housings for the speaker, the NVIDIA Jetson Thor and the batteries, and swivel mounts that let the cameras be angled and clamped at angles other than 45 degrees when needed. All of the electronics ride on a rear rack, shown in the Designs section as the [[electronics-mounting-rack|Electronics Mounting Rack]].',
+      '**How the system works**\nThe Jetson Thor processes a wide-view camera image, stitched from three cameras (one forward facing and two angled 45 degrees to the left and right), together with a VectorNav GPS/INS. A machine learning algorithm outputs a commanded steering angle, which is sent over serial to an ESP32, and the ESP32 drives the linear actuator through a motor driver. Speed is fused from a magnetic wheel odometer and the VectorNav IMU. Because speed and steering angle together determine the trajectory, the system also brakes autonomously to hit its curvature targets.',
+      '**Rider feedback**\nWhen the rider must slow down or brake immediately, the system gives audio cues through a speaker and haptic cues through a vibrating vest.',
+      '**Working with the client**\nOur client is Dan Parker, who is completely blind (his story is at theblindmachininst.com). I consulted him throughout for engineering advice and for what a blind rider would want in a commercially available product. The first in-person session with him was an improvement session where we retrofitted his own identical tricycle with our electronics (the photos here are of our test tricycle, which is why they differ from the video).',
+      '**Results**\nThe in-person test was a continuous autonomous run of more than three quarters of a mile on public roads around the client\'s house, which was effectively a simulation of real consumer use. We then field tested with 10 visually impaired participants, who gave feedback on comfort and usability through surveys.',
+      'Engineering skills: CAD, 3D printing and design for durability, actuator and linkage design, systems integration, controls.',
+    ],
+  },
+  'linear-motor-control-soft-robotic-actuators': {
+    subtitle: '',
+    paragraphs: [
+      "A hydraulic actuation system for soft robots built at the Morphable Biorobotics Lab, aimed at surgical operations performed through a catheter to the heart. Each robot is a stacked balloon actuator made of three columns of stacked balloons, and inflating or deflating the columns bends it into a curve. The control system pushes water into and out of each column with a syringe driven by a stepper motor. I designed all of the enclosures for the motor control boards and the physical actuation system, and I made the upgrade that scaled the system to syringes five times larger.",
+      '**How it works**\nEach of the three channels is a luer-lock syringe (McMaster-Carr 6500T58) whose plunger is seated in a linear carriage. A NEMA 17 stepper turns a lead screw to push or pull the plunger, and the luer lock lets hoses adapt to each balloon column. The same syringe is used in the [[syringe-case|Syringe Case]] design in the Designs section, a separate storage module for syringes that are not in use. Microstepping a lead screw gives extremely fine control of how much water moves, which is what precise surgical manipulation needs. There are two control boards, one built around an Arduino Leonardo and one around a Teensy 4.0, and both use Pololu Tic T825 controllers to drive the steppers. They are programmed in the Arduino IDE and take their commands from a Python script on a data collection PC.',
+      '**Enclosures and actuation hardware**\nBecause this was a research platform that was constantly being updated and modified, the enclosures were designed so the electronics can be removed and reinserted quickly.',
+      '**Scaling up the syringes**\nThe original system used 1 mL syringes. I revised it for 5 mL syringes, which gives much more volumetric control without growing the control system. The stepper motors were already supplied with enough voltage and current to push and pull a larger syringe, so only the carriage and the syringe holder had to be redesigned.',
+      '**Role in the wider platform**\nThe lab closes the loop on the robot\'s shape with three cameras that each view the robot from an orthogonal plane. A piecewise constant curvature (PCC) model estimates its curvature, and a machine learning model relates commanded inputs to the behavior the cameras observe.',
+      'Engineering skills: CAD, 3D printing, stepper and lead-screw actuation, hydraulic systems, Arduino IDE.',
+    ],
+  },
+  'bar-balancing-car': {
+    subtitle: '',
+    paragraphs: [
+      "A PID-controlled car that carries a free-standing bar on its top and drives between two points without tipping it. There is no sensor on the bar: the controller's only job is to move the car smoothly enough that the bar stays up. I did the full mechanical design, including CAD and fabrication by 3D printing and laser cutting, and I worked on implementing and tuning the PID controller.",
+      '**Why the bar tips**\nThe bar is a simple 1 in by 1 in by 12 in rod standing on the cart. When the car accelerates forward, the rod effectively feels a force at its center of mass pointing backward, and it tips once its contact force with the cart top falls to zero. That condition sets the maximum linear acceleration the car can use. I calculated it by hand as 2.68 ft/s^2 and confirmed it in SOLIDWORKS.',
+      '**Controller**\nThe car follows a ramped acceleration profile rather than stepping to a target speed. Smooth acceleration removes jerk, and keeping the acceleration under the tipping limit keeps the bar upright, while the PID loop tracks the profile. The car is driven by a stepper motor with a built-in encoder, through an L298N driver controlled by an Arduino Uno.',
+      '**Construction**\nThe chassis is 1/4 in MDF, laser cut, and all the other mounting hardware is 3D printed in PLA or metal fasteners. The PLA wheel and TPU tire are shown in the [[wheel-and-tire-assembly|Wheel and Tire Assembly]] design in the Designs section.',
+      '**Result**\nIn the demo video the car drives 5 ft and back without the bar tipping. The simulation predicted 10.32 seconds for the 10 ft round trip and the demo took 12 seconds, a gap I attribute to friction and other effects the simulation did not account for.',
+      'Engineering skills: CAD (SOLIDWORKS), laser cutting, 3D printing, PID control and tuning.',
+    ],
+  },
+  'multi-robot-navigator': {
+    subtitle: '',
+    paragraphs: [
+      "A decentralized controller I wrote on my own in plain Python for AgileX LIMO robots that must all reach distinct goal positions at once. It works like a person walking through a crowd: every robot runs the same control law and can only control itself. It can see where the other robots are relative to itself, from motion capture at Boston University's Robotics and Autonomous Systems Teaching and Innovation Center (RASTIC), but it cannot command them, and yet they all get to their targets without colliding.",
+      'Paths are planned before the run and updated in real time as robots cross paths and as others park at their destinations. Intersections are negotiated greedily but politely: a robot lets the robots that are closer to their targets go first. The script contains the LIMO controller and also simulates a 12-robot run, placing the robots randomly on a grid and assigning each a target. In the simulation the motion capture feedback is just the true robot positions shared with every robot. The same script was also run on real LIMOs with the motion capture system, so this was not a pure simulation.',
+    ],
+  },
+  'obstacle-course-navigator': {
+    subtitle: '',
+    paragraphs: [
+      'MATLAB code I wrote for an AgileX LIMO robot to plan a path around a predetermined obstacle course with A* and then drive it in the motion capture arena. We placed physical obstacles to recreate the digital course, and the motion capture feedback let me project the planned trajectory and the obstacle coordinates onto real-world locations.',
+      'The final controller combines feedforward, using pure pursuit to steer toward the planned trajectory, with feedback from motion capture tracking the true position of the LIMO. It navigated three different obstacle courses successfully; the video shows all three runs and the photos show the course maps.',
+    ],
+  },
+  'blue-line-following-robot': {
+    subtitle: '',
+    paragraphs: [
+      "MATLAB-based computer vision navigation for an AgileX LIMO robot. A pure pursuit controller masks the LIMO's onboard camera image so that it sees only blue, which makes the robot pursue blue paths and nothing else. At detected intersections it is biased toward taking a turn rather than going straight.",
+      'We also experimented with biasing left and right turns over each other to give the robot a hierarchy of choices. This ran into the limits of how far ahead the robot can see, and of how early it must decide, since it cannot act on a path it has already passed. In the video the robot turns early on purpose: its steering angle is hardware limited to a wide range, so it cannot start a sharp turn on short notice.',
+    ],
+  },
+  'e-bike-conversion': {
+    subtitle: '',
+    paragraphs: [
+      'A personal, hands-on passion project: I fully retrofitted my Genesis Saracino hardtail mountain bike into an e-bike with a Bafang mid-drive motor. The conversion includes electronic brake cutoffs, a handlebar-mounted display, a thumb throttle, spoke-magnet based odometry and gear shift sensing.',
     ],
   },
 }

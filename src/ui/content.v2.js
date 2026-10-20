@@ -68,6 +68,8 @@ const rank = (p) => {
 const CAROUSEL_HIDE = {
   'clawd-wirelessly-controlled-3-5-dof-mechanism': [12, 14, 15, 16, 17, 19, 20, 22],
 }
+// VIDEO_FIRST: the video is the big media panel and the photos a small carousel under it.
+const VIDEO_FIRST = new Set(['obstacle-course-navigator'])
 const TITLES = {
   'clawd-wirelessly-controlled-3-5-dof-mechanism': "CLAW'D - the wireless claw machine game",
 }
@@ -85,7 +87,7 @@ const withMedia = (p) => {
   if (!m) return { ...p, ...text, title, videos: [], links }
   const hide = CAROUSEL_HIDE[p.slug] ?? []
   const images = m.images.filter((_, i) => !hide.includes(i + 1))
-  return { ...p, ...text, title, thumb: m.thumb, images, videos: m.videos, links }
+  return { ...p, ...text, title, thumb: m.thumb, images, videos: m.videos, links, videoFirst: VIDEO_FIRST.has(p.slug) }
 }
 // A project with nothing to show (no summary, text, photos or video) is left out
 // rather than shown as an empty page.
@@ -177,4 +179,5 @@ export const homeBubbles = [
 // thumbnail's worth of photos there is no carousel (the video is the panel).
 export const hasPortrait = (item) => Boolean(item.portrait)
 export const hasPhotoCarousel = (item) => item.images.length > 0 && !((item.videos ?? []).length > 0 && item.images.length <= 1)
+// True when a small panel (video, or the photos for a videoFirst page) hangs under the big one.
 export const hasSmallVideo = (item) => hasPhotoCarousel(item) && (item.videos ?? []).length > 0

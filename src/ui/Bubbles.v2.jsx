@@ -205,18 +205,33 @@ function GetInTouch() {
 }
 
 // "**Heading**" at the start of a paragraph renders bold (the old-site text uses it).
-function Para({ text }) {
+// "[[slug|Label]]" is an in-site link to another project or design (onNavigate(slug)).
+function Para({ text, onNavigate }) {
   return (
     <p className="whitespace-pre-line">
-      {text.split(/\*\*(.+?)\*\*/).map((part, i) =>
-        i % 2 ? (
-          <strong key={i} className="font-semibold text-slate-900">
-            {part}
-          </strong>
-        ) : (
-          part
-        ),
-      )}
+      {text.split(/(\*\*.+?\*\*|\[\[.+?\]\])/).map((part, i) => {
+        if (part.startsWith('**') && part.endsWith('**')) {
+          return (
+            <strong key={i} className="font-semibold text-slate-900">
+              {part.slice(2, -2)}
+            </strong>
+          )
+        }
+        if (part.startsWith('[[') && part.endsWith(']]')) {
+          const [slug, label] = part.slice(2, -2).split('|')
+          return (
+            <button
+              key={i}
+              type="button"
+              onClick={() => onNavigate?.(slug)}
+              className="font-medium text-slate-900 underline decoration-slate-400 underline-offset-2 transition hover:decoration-slate-900"
+            >
+              {label}
+            </button>
+          )
+        }
+        return part
+      })}
     </p>
   )
 }
@@ -253,7 +268,7 @@ function LinkCard({ link }) {
   )
 }
 
-export function TextPanel({ item, side }) {
+export function TextPanel({ item, side, onNavigate }) {
   const place = side === 'left' ? 'left-[2.5vw] flank-in-left' : 'right-[2.5vw] flank-in-right'
   const body = (
     <>
@@ -262,7 +277,7 @@ export function TextPanel({ item, side }) {
       {item.date && <p className="mt-1 text-sm text-slate-500">{item.date}</p>}
       <div className="mt-5 space-y-4 text-sm leading-relaxed text-slate-700">
         {item.paragraphs.map((para, i) => (
-          <Para key={i} text={para} />
+          <Para key={i} text={para} onNavigate={onNavigate} />
         ))}
       </div>
       {item.note && <p className="mt-5 text-xs italic text-slate-500">{item.note}</p>}
@@ -437,6 +452,25 @@ export function ImagePanel({ item, side }) {
   const carousel = hasPhotoCarousel(item)
   const portrait = hasPortrait(item)
   if (!carousel && !portrait && videos.length === 0) return null
+  if (item.videoFirst && videos.length > 0) {
+    // Video is the big panel; the photos are a small reference carousel under it.
+    return (
+      <>
+        <aside className={`${PANEL} ${place} !overflow-hidden !p-3`}>
+          <video src={videos[0]} controls playsInline preload="metadata" className="h-full w-full rounded-2xl bg-black" />
+        </aside>
+        {carousel && (
+          <div className={`pointer-events-none fixed top-[calc(66%+14px)] flex w-[28vw] min-w-[260px] justify-center ${place}`}>
+            <div className="pointer-events-auto w-[16vw] min-w-[220px] rounded-3xl border border-slate-200 bg-white/80 p-3 shadow-xl shadow-slate-400/30 backdrop-blur-md">
+              <div className="aspect-video w-full">
+                <Carousel key={item.slug} images={item.images} />
+              </div>
+            </div>
+          </div>
+        )}
+      </>
+    )
+  }
   return (
     <>
       {portrait && <PortraitPanel src={item.portrait} className={`${place} !bottom-[63%]`} />}
